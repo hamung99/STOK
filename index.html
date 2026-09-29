@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan Rekapitulasi Stok Produk</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        .dropdown-enter { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ===== Tabel mode Lengkap ===== */
+        #result-container table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            font-size: 13px;
+        }
+        
+        #result-container th {
+            background-color: #f8f9fa;
+            color: #5f6368;
+            font-weight: 500;
+            padding: 6px 8px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        
+        #result-container td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #f0f0f0;
+            white-space: nowrap;
+            color: #202124;
+        }
+
+        #result-container tbody tr:nth-child(even) { background-color: #fafafa; }
+        #result-container tbody tr:hover { background-color: #f0f7ff; }
+
+        /* Kotak tabel punya scroll sendiri (X dan Y) supaya sticky header bekerja */
+        .table-scroll {
+            width: 100%;
+            max-height: calc(100vh - 270px);
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Sticky header multi-row; nilai top dihitung otomatis lewat JavaScript */
+        #result-container thead th {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background-color: #f8f9fa;
+            box-shadow: 0 1px 0 #e0e0e0;
+        }
+
+        /* ===== Tab file (satu tab per Excel) ===== */
+        .file-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            max-width: 300px;
+            padding: 6px 12px;
+            font-size: 12px;
+            color: #3c4043;
+            background: #fff;
+            border: 1px solid #dadce0;
+            border-radius: 9999px;
+            transition: background 0.15s, border-color 0.15s;
+            cursor: pointer;
+        }
+        .file-chip:hover { background: #f1f3f4; }
+        .file-chip.active { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+        .file-chip .file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .file-chip .file-x { opacity: 0.6; font-size: 11px; padding: 0 2px; }
+        .file-chip .file-x:hover { opacity: 1; }
+
+        /* ===== Sub tab sheet ===== */
+        .sheet-btn {
+            padding: 5px 16px;
+            font-size: 12px;
+            color: #5f6368;
+            background: #f1f3f4;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            transition: background 0.15s, color 0.15s;
+        }
+        .sheet-btn:hover { background: #e8eaed; }
+        .sheet-btn.active { background: #e8f0fe; color: #1a73e8; border-color: #c6dafc; font-weight: 500; }
+
+        /* ===== Tab mode tampilan ===== */
+        .tab-btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            color: #5f6368;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .tab-btn:hover { color: #1a73e8; }
+        .tab-btn.active { color: #1a73e8; border-bottom-color: #1a73e8; font-weight: 500; }
+
+        /* ===== Tabel mode Ringkas ===== */
+        #ringkas-container table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        #ringkas-container th {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background-color: #8db4e2;
+            color: #000;
+            font-weight: 700;
+            padding: 8px 10px;
+            border: 1px solid #555;
+            text-align: center;
+            white-space: nowrap;
+        }
+        #ringkas-container td {
+            padding: 6px 10px;
+            border: 1px solid #555;
+            text-align: center;
+            white-space: nowrap;
+            color: #202124;
+        }
+        #ringkas-container td.produk { text-align: left; }
+        #ringkas-container td.ket { font-size: 11px; color: #c2410c; }
+        #ringkas-container tbody tr:hover { background-color: #f0f7ff; }
+
+        @media (max-width: 768px) {
+            #result-container table { font-size: 11px; }
+            #result-container th, #result-container td { padding: 5px 6px; }
+            .file-chip { max-width: 220px; }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 font-sans p-6 min-h-screen">
+
+    <div class="w-full">
+        
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h1 class="text-base font-normal text-gray-900">Laporan Rekapitulasi Stok Produk</h1>
+                <p class="text-red-500 text-xs mt-1 font-medium" id="statusText"></p>
+                <p class="text-gray-400 text-xs mt-1" id="saveText"></p>
+            </div>
+            
+            <div class="relative">
+                <button id="menuBtn" class="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                    </svg>
+                </button>
+
+                <div id="dropdownMenu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-100 z-50 dropdown-enter">
+                    <div class="py-1">
+                        <div class="px-4 py-2 border-b border-gray-100">
+                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Aksi</p>
+                        </div>
+                        <label for="excelFile" class="cursor-pointer flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
+                            <i class="fas fa-file-excel text-green-500 w-5 mr-3 text-center"></i>
+                            Upload File Excel
+                        </label>
+                        <input type="file" id="excelFile" class="hidden" accept=".xlsb,.xlsx,.xls" multiple>
+                        
+                        <a href="#" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
+                            <i class="fas fa-download text-blue-500 w-5 mr-3 text-center"></i>
+                            Download Template
+                        </a>
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <a href="#" id="saveJsonBtn" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
+                            <i class="fas fa-save text-blue-500 w-5 mr-3 text-center"></i>
+                            Simpan Semua (JSON)
+                        </a>
+                        <label for="jsonFile" class="cursor-pointer flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
+                            <i class="fas fa-folder-open text-amber-500 w-5 mr-3 text-center"></i>
+                            Buka Backup JSON
+                        </label>
+                        <input type="file" id="jsonFile" class="hidden" accept=".json,application/json">
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <a href="#" id="deleteBtn" class="flex items-center px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition">
+                            <i class="fas fa-trash-alt w-5 mr-3 text-center"></i>
+                            Hapus Pilihan Data...
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="hidden text-sm text-orange-600 font-medium mb-3">
+            <i class="fas fa-spinner fa-spin mr-2"></i> Memproses file Excel... Silakan tunggu.
+        </div>
+
+        <!-- Satu tab per file Excel -->
+        <div id="fileTabs" class="hidden flex flex-wrap gap-2 mb-3"></div>
+
+        <!-- Sub tab: sheet dalam satu file (mis. Fitri, Mie, Margarine, WHOSI) -->
+        <div id="sheetTabs" class="hidden flex flex-wrap gap-1 mb-3"></div>
+
+        <!-- Tab mode tampilan: Lengkap / Ringkas -->
+        <div id="tabs" class="hidden border-b border-gray-200 mb-3">
+            <div class="flex gap-1">
+                <button type="button" class="tab-btn active" data-tab="lengkap">Lengkap (per tanggal)</button>
+                <button type="button" class="tab-btn" data-tab="ringkas">Ringkas</button>
+            </div>
+        </div>
+
+        <!-- JANGAN pakai overflow-hidden — memblokir sticky header -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 w-full">
+            <div class="w-full hidden" id="ringkas-container"></div>
+            <div class="w-full" id="result-container"></div>
+        </div>
+
+    </div>
+
+    <!-- Jendela pilih data yang akan dihapus -->
+    <div id="deleteModal" class="hidden fixed inset-0 items-center justify-center bg-black/40 p-4" style="z-index:100;">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div class="px-5 pt-5 pb-3">
+                <h2 class="text-base font-medium text-gray-900">Hapus pilihan data</h2>
+                <p class="text-xs text-gray-500 mt-1">Centang file yang ingin dihapus. File asli di komputer Anda tidak ikut terhapus.</p>
+            </div>
+            <label class="flex items-center gap-3 px-5 py-2 border-y border-gray-100 bg-gray-50 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" id="deleteAll" class="h-4 w-4">
+                <span>Pilih semua</span>
+            </label>
+            <div id="deleteList" class="max-h-64 overflow-y-auto"></div>
+            <div class="px-5 py-3 border-t border-gray-100 flex items-center justify-between gap-3">
+                <button type="button" id="deleteBackupBtn" class="text-xs text-blue-600 hover:underline">
+                    <i class="fas fa-save mr-1"></i>Simpan JSON dulu
+                </button>
+                <div class="flex gap-2">
+                    <button type="button" id="deleteCancelBtn" class="px-4 py-2 text-sm rounded-lg text-gray-700 hover:bg-gray-100">Batal</button>
+                    <button type="button" id="deleteConfirmBtn" class="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed" disabled>Hapus</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        const fileInput = document.getElementById('excelFile');
+        const loading = document.getElementById('loading');
+        const statusText = document.getElementById('statusText');
+        const result = document.getElementById('result-container');
+        const ringkasBox = document.getElementById('ringkas-container');
+        const fileTabs = document.getElementById('fileTabs');
+        const sheetTabs = document.getElementById('sheetTabs');
+        const tabs = document.getElementById('tabs');
+        const menuBtn = document.getElementById('menuBtn');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+        const deleteBtn = document.getElementById('deleteBtn');
+        const saveJsonBtn = document.getElementById('saveJsonBtn');
+        const jsonFile = document.getElementById('jsonFile');
+        const deleteModal = document.getElementById('deleteModal');
+        const deleteList = document.getElementById('deleteList');
+        const deleteAll = document.getElementById('deleteAll');
+        const deleteConfirmBtn = document.getElementById('deleteConfirmBtn');
+        const deleteCancelBtn = document.getElementById('deleteCancelBtn');
+        const deleteBackupBtn = document.getElementById('deleteBackupBtn');
+
+        const EMPTY_HTML =
+            '<div class="p-8 text-center text-gray-400 text-sm">' +
+            '<i class="fas fa-file-upload text-3xl mb-3 text-gray-300"></i>' +
+            '<p>Belum ada data. Silakan unggah satu atau beberapa file Excel melalui menu di pojok kanan atas.</p>' +
+            '</div>';
+
+        // Daftar file yang sudah diunggah: {key, name, table, lengkapEl, ringkasEl}
+        const files = [];
+        let activeFile = -1;
+        let activeTab = 'lengkap';
+
+        result.innerHTML = EMPTY_HTML;
+
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdownMenu.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!dropdownMenu.contains(e.target) && !menuBtn.contains(e.target)) {
+                dropdownMenu.classList.add('hidden');
+            }
+        });
+
+        function setStatus(msg) {
+            statusText.textContent = msg || '';
+        }
+
+        function normalizeText(value) {
+            return String(value || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+        }
+
+        function isTargetDate(text) {
+            const t = normalizeText(text);
+            return (
+                t.includes('31/09/2026') || t.includes('31-09-2026') || t.includes('31.09.2026') ||
+                t.includes('31/09/26') || t.includes('31-09-26') || t.includes('31.09.26')
+            );
+        }
+
+        function limitToThreeRowsAfterTarget(table) {
+            const rows = Array.from(table.querySelectorAll('tr'));
+            let targetIndex = -1;
+
+            for (let i = 0; i < rows.length; i++) {
+                if (isTargetDate(rows[i].textContent)) {
+                    targetIndex = i;
+                    break;
+                }
+            }
+
+            if (targetIndex === -1) return { found: false, shown: rows.length };
+
+            const lastIndex = Math.min(targetIndex + 3, rows.length - 1);
+            for (let i = lastIndex + 1; i < rows.length; i++) {
+                rows[i].remove();
+            }
+            return { found: true, shown: lastIndex + 1, targetIndex: targetIndex };
+        }
+
+        // Hitung offset "top" tiap baris header secara otomatis (tabel harus sedang tampil)
+        function fixStickyOffsets(table) {
+            const headRows = table.querySelectorAll('thead tr');
+            let offset = 0;
+            headRows.forEach(tr => {
+                Array.from(tr.cells).forEach(cell => { cell.style.top = offset + 'px'; });
+                offset += tr.getBoundingClientRect().height;
+            });
+        }
+
+        // ===== Mode Ringkas =====
+
+        // Ubah <table> jadi grid 2D dengan colspan/rowspan dijabarkan
+        function tableToGrid(table) {
+            const grid = [];
+            Array.from(table.querySelectorAll('tr')).forEach((tr, r) => {
+                grid[r] = grid[r] || [];
+                let c = 0;
+                Array.from(tr.cells).forEach(cell => {
+                    while (grid[r][c] !== undefined) c++;
+                    const cs = parseInt(cell.getAttribute('colspan') || '1', 10);
+                    const rs = parseInt(cell.getAttribute('rowspan') || '1', 10);
+                    const text = (cell.textContent || '').replace(/\u00a0/g, ' ').trim();
+                    for (let i = 0; i < rs; i++) {
+                        grid[r + i] = grid[r + i] || [];
+                        for (let j = 0; j < cs; j++) grid[r + i][c + j] = text;
+                    }
+                    c += cs;
+                });
+            });
+            return grid;
+        }
+
+        function toNum(v) {
+            const n = parseFloat(String(v || '').replace(/,/g, '').replace(/\s/g, ''));
+            return isNaN(n) ? 0 : n;
+        }
+
+        function fmt(n) {
+            return String(Math.round(n * 100) / 100);
+        }
+
+        // Kenali struktur tabel: baris sub-header (msk | klr | stok...), daftar produk, baris stok awal, baris tanggal
+        function parseStruct(grid) {
+            const dateRe = /^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/;
+            const isMsk = v => /^(msk|masuk)$/.test(v);
+            const isKlr = v => /^(klr|keluar)$/.test(v);
+            const isStok = v => /^stok/.test(v); // cocok untuk "stok", "stok sfa", dst.
+            const norm = row => (row || []).map(v => (v || '').toLowerCase().trim());
+
+            let subIdx = -1;
+            for (let i = 0; i < grid.length; i++) {
+                const low = norm(grid[i]);
+                if (low.some(isMsk) && low.some(isKlr) && low.some(isStok)) { subIdx = i; break; }
+            }
+            if (subIdx === -1) return null;
+
+            const sub = norm(grid[subIdx]);
+            const products = [];
+            for (let c = 0; c < sub.length - 2; c++) {
+                if (isMsk(sub[c]) && isKlr(sub[c + 1]) && isStok(sub[c + 2])) {
+                    const name = ((grid[subIdx - 1] || [])[c] || '').trim() || ('Produk ' + (products.length + 1));
+                    products.push({ name: name, c: c });
+                    c += 2;
+                }
+            }
+            if (!products.length) return null;
+
+            // Baris stok awal (kolom tanggal kosong) dan baris-baris tanggal
+            let initRow = null;
+            const dateRows = [];
+            for (let r = subIdx + 1; r < grid.length; r++) {
+                const row = grid[r] || [];
+                const first = row[0] || '';
+                if (dateRe.test(first)) dateRows.push(row);
+                else if (first === '' && !initRow && dateRows.length === 0) initRow = row;
+            }
+
+            return { subIdx: subIdx, products: products, initRow: initRow, dateRows: dateRows };
+        }
+
+        // Hapus kolom tertentu dari tabel (mulai dari baris fromRow), aman untuk colspan/rowspan
+        function removeColumns(table, cols, fromRow) {
+            const occupied = [];
+            Array.from(table.querySelectorAll('tr')).forEach((tr, r) => {
+                occupied[r] = occupied[r] || new Set();
+                let c = 0;
+                Array.from(tr.cells).forEach(cell => {
+                    while (occupied[r].has(c)) c++;
+                    const cs = parseInt(cell.getAttribute('colspan') || '1', 10);
+                    const rs = parseInt(cell.getAttribute('rowspan') || '1', 10);
+                    for (let i = 1; i < rs; i++) {
+                        occupied[r + i] = occupied[r + i] || new Set();
+                        for (let j = 0; j < cs; j++) occupied[r + i].add(c + j);
+                    }
+                    if (r >= fromRow) {
+                        let removed = 0;
+                        for (let j = 0; j < cs; j++) if (cols.has(c + j)) removed++;
+                        if (removed === cs) cell.remove();
+                        else if (removed > 0) cell.setAttribute('colspan', String(cs - removed));
+                    }
+                    c += cs;
+                });
+            });
+        }
+
+        // Sembunyikan produk yang masuk, keluar, dan stok-nya 0 semua. Mengembalikan jumlah produk yang disembunyikan.
+        function hideZeroProducts(table) {
+            const st = parseStruct(tableToGrid(table));
+            if (!st) return 0;
+
+            const check = st.dateRows.concat(st.initRow ? [st.initRow] : []);
+            if (!check.length) return 0;
+
+            const cols = new Set();
+            let hidden = 0;
+            st.products.forEach(p => {
+                const allZero = check.every(row =>
+                    toNum(row[p.c]) === 0 && toNum(row[p.c + 1]) === 0 && toNum(row[p.c + 2]) === 0);
+                if (allZero) {
+                    hidden++;
+                    cols.add(p.c); cols.add(p.c + 1); cols.add(p.c + 2);
+                }
+            });
+
+            if (hidden) removeColumns(table, cols, Math.max(st.subIdx - 1, 0));
+            return hidden;
+        }
+
+        // Hitung ringkasan per produk dari tabel yang sudah dibatasi baris tanggalnya
+        function buildRingkas(table) {
+            const st = parseStruct(tableToGrid(table));
+            if (!st) return null;
+            const products = st.products, initRow = st.initRow, dateRows = st.dateRows;
+
+            const items = products.map(p => {
+                let masuk = 0, keluar = 0, lastStok = null;
+                dateRows.forEach(row => {
+                    masuk += toNum(row[p.c]);
+                    keluar += toNum(row[p.c + 1]);
+                    const s = row[p.c + 2] || '';
+                    if (s !== '') lastStok = toNum(s);
+                });
+                const awal = (initRow && (initRow[p.c + 2] || '') !== '') ? toNum(initRow[p.c + 2]) : 0;
+                const hitung = awal + masuk - keluar;
+                const akhir = lastStok !== null ? lastStok : hitung;
+                const selisih = Math.round((hitung - akhir) * 100) / 100;
+                return { name: p.name, awal: awal, masuk: masuk, keluar: keluar, akhir: akhir, selisih: selisih };
+            });
+
+            return {
+                items: items,
+                dari: dateRows.length ? dateRows[0][0] : '',
+                sampai: dateRows.length ? dateRows[dateRows.length - 1][0] : ''
+            };
+        }
+
+        function buildRingkasEl(table, hiddenCount) {
+            const box = document.createElement('div');
+            const data = buildRingkas(table);
+
+            if (!data) {
+                const msg = hiddenCount > 0
+                    ? 'Semua ' + hiddenCount + ' produk bernilai 0 (masuk, keluar, dan stok), jadi tidak ditampilkan.'
+                    : 'Mode Ringkas tidak dapat dibuat: kolom msk / klr / stok tidak ditemukan.';
+                box.innerHTML = '<div class="p-8 text-center text-gray-400 text-sm"></div>';
+                box.firstChild.textContent = msg;
+                return box;
+            }
+
+            if (data.dari || hiddenCount > 0) {
+                const info = document.createElement('p');
+                info.className = 'px-4 pt-3 pb-2 text-xs text-gray-500';
+                const parts = [];
+                if (data.dari) parts.push('Periode: ' + data.dari + (data.sampai && data.sampai !== data.dari ? ' s/d ' + data.sampai : ''));
+                if (hiddenCount > 0) parts.push(hiddenCount + ' produk disembunyikan karena masuk, keluar, dan stok semuanya 0');
+                info.textContent = parts.join('  |  ');
+                box.appendChild(info);
+            }
+
+            const wrap = document.createElement('div');
+            wrap.className = 'table-scroll';
+            const t = document.createElement('table');
+
+            const thead = document.createElement('thead');
+            const hr = document.createElement('tr');
+            ['PRODUK', 'STOK AWAL', 'MASUK', 'KELUAR', 'STOK AKHIR', 'KET'].forEach(h => {
+                const th = document.createElement('th');
+                th.textContent = h;
+                hr.appendChild(th);
+            });
+            thead.appendChild(hr);
+            t.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            data.items.forEach(it => {
+                const tr = document.createElement('tr');
+                const vals = [it.name, fmt(it.awal), fmt(it.masuk), fmt(it.keluar), fmt(it.akhir),
+                    it.selisih !== 0 ? 'Selisih ' + (it.selisih > 0 ? '+' : '') + fmt(it.selisih) : ''];
+                const cls = ['produk', '', '', '', '', 'ket'];
+                vals.forEach((v, i) => {
+                    const td = document.createElement('td');
+                    td.textContent = v;
+                    if (cls[i]) td.className = cls[i];
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            t.appendChild(tbody);
+
+            wrap.appendChild(t);
+            box.appendChild(wrap);
+            return box;
+        }
+
+        // Aturan multi-sheet: file yang namanya mengandung teks di "match" akan dibaca sampai "maxSheets" sheet.
+        // Tiap sheet jadi sub tab dengan nama dari "sheetLabels" (urut sesuai urutan sheet di Excel).
+        // File lain hanya membaca sheet pertama.
+        const MULTI_SHEET_RULES = [
+            { match: 'MINYAK', maxSheets: 4, sheetLabels: ['Fitri', 'Mie', 'Margarine', 'WHOSI'] }
+        ];
+
+        // Mengembalikan daftar {sn: nama sheet asli, label: nama sub tab}
+        function sheetsToRead(fileName, workbook) {
+            const upper = fileName.toUpperCase();
+            const rule = MULTI_SHEET_RULES.find(r => upper.includes(r.match.toUpperCase()));
+            const limit = rule ? rule.maxSheets : 1;
+            return workbook.SheetNames.slice(0, limit).map((sn, i) => ({
+                sn: sn,
+                label: (rule && rule.sheetLabels && rule.sheetLabels[i]) || sn
+            }));
+        }
+
+        // ===== Membangun satu sheet (tabel Lengkap + Ringkas) dari satu workbook =====
+        function buildFile(workbook, sheetName) {
+            if (!workbook || !workbook.SheetNames || !workbook.SheetNames.length) {
+                throw new Error('Workbook tidak mempunyai sheet.');
+            }
+
+            const worksheet = workbook.Sheets[sheetName];
+            if (!worksheet) throw new Error('Sheet "' + sheetName + '" tidak dapat dibaca.');
+
+            const htmlTable = XLSX.utils.sheet_to_html(worksheet, { editable: false });
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlTable;
+            
+            const table = tempDiv.querySelector('table');
+            if (!table) throw new Error('Tabel hasil Excel tidak berhasil dibuat.');
+
+            // A. Hapus baris judul "STOK ..." (mis. STOK KECAP & SAMBAL, STOK MINYAK GORENG CURAH)
+            const rows = Array.from(table.querySelectorAll('tr'));
+            for (let i = 0; i < Math.min(rows.length, 5); i++) {
+                const filled = Array.from(rows[i].cells)
+                    .map(c => (c.textContent || '').replace(/\u00a0/g, ' ').trim())
+                    .filter(t => t !== '');
+                if (filled.length === 1 && filled[0].toUpperCase().startsWith('STOK ')) {
+                    rows[i].remove();
+                    break;
+                }
+            }
+
+            // B. Gabungkan baris "BULAN SEPTEMBER" dan "TAHUN 2026"
+            let bulanRow = null;
+            let tahunRow = null;
+            const currentRows = Array.from(table.querySelectorAll('tr'));
+            
+            for (let i = 0; i < Math.min(currentRows.length, 10); i++) {
+                const text = currentRows[i].textContent.toLowerCase();
+                if (text.includes('bulan') && !bulanRow) bulanRow = currentRows[i];
+                if (text.includes('tahun') && !tahunRow) tahunRow = currentRows[i];
+            }
+
+            if (bulanRow && tahunRow && bulanRow !== tahunRow) {
+                if (bulanRow.cells.length >= 2 && tahunRow.cells.length >= 2) {
+                    const b1 = bulanRow.cells[0].textContent.trim();
+                    const b2 = bulanRow.cells[1].textContent.trim();
+                    const t1 = tahunRow.cells[0].textContent.trim();
+                    const t2 = tahunRow.cells[1].textContent.trim();
+                    
+                    bulanRow.cells[0].textContent = b1 + ' ' + b2;
+                    bulanRow.cells[1].textContent = t1 + ' ' + t2;
+                    
+                    tahunRow.remove();
+                }
+            }
+
+            // C. Pindahkan baris header ke <thead> agar sticky berfungsi
+            const allRows = Array.from(table.querySelectorAll('tr'));
+            let headerEndIndex = 0;
+
+            for (let i = 0; i < Math.min(allRows.length, 8); i++) {
+                const firstCell = (allRows[i].cells[0]?.textContent || '').trim();
+                const isDateRow = /^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/.test(firstCell);
+                const isInitialStockRow = !isDateRow && firstCell === '' &&
+                    Array.from(allRows[i].cells).slice(1).some(c => /^\d+$/.test((c.textContent || '').trim()));
+
+                if (isDateRow || isInitialStockRow) {
+                    headerEndIndex = i;
+                    break;
+                }
+                headerEndIndex = i + 1;
+            }
+
+            if (headerEndIndex > 0) {
+                let thead = table.querySelector('thead');
+                if (!thead) {
+                    thead = document.createElement('thead');
+                    table.insertBefore(thead, table.firstChild);
+                }
+                let tbody = table.querySelector('tbody');
+                if (!tbody) {
+                    tbody = document.createElement('tbody');
+                    table.appendChild(tbody);
+                }
+
+                const headerRows = allRows.slice(0, headerEndIndex);
+                headerRows.forEach(row => {
+                    Array.from(row.cells).forEach(cell => {
+                        if (cell.tagName.toLowerCase() === 'td') {
+                            const th = document.createElement('th');
+                            th.innerHTML = cell.innerHTML;
+                            Array.from(cell.attributes).forEach(attr => {
+                                if (attr.name !== 'class') th.setAttribute(attr.name, attr.value);
+                            });
+                            cell.replaceWith(th);
+                        }
+                    });
+                    thead.appendChild(row);
+                });
+
+                const remaining = Array.from(table.querySelectorAll('tr')).filter(r => r.parentElement !== thead);
+                remaining.forEach(r => tbody.appendChild(r));
+            }
+
+            limitToThreeRowsAfterTarget(table);
+
+            // Sembunyikan produk yang masuk, keluar, dan stok-nya 0 semua (berlaku untuk Lengkap & Ringkas)
+            const hiddenCount = hideZeroProducts(table);
+
+            const lengkapEl = document.createElement('div');
+            if (hiddenCount > 0) {
+                const note = document.createElement('p');
+                note.className = 'px-4 pt-3 pb-2 text-xs text-gray-500';
+                note.textContent = hiddenCount + ' produk disembunyikan karena masuk, keluar, dan stok semuanya 0';
+                lengkapEl.appendChild(note);
+            }
+            const scroll = document.createElement('div');
+            scroll.className = 'table-scroll';
+            scroll.appendChild(table);
+            lengkapEl.appendChild(scroll);
+
+            const ringkasEl = buildRingkasEl(table, hiddenCount);
+
+            return { table: table, lengkapEl: lengkapEl, ringkasEl: ringkasEl };
+        }
+
+        // ===== Tab file & tab mode =====
+
+        // "4. SEPTEMBER NISSIN 2026 (3).xlsx" -> "4. SEPTEMBER NISSIN 2026"
+        function cleanName(fileName) {
+            return fileName.replace(/\.[^.]+$/, '').replace(/\s*\(\d+\)\s*$/, '').trim() || fileName;
+        }
+
+        function renderFileTabs() {
+            fileTabs.innerHTML = '';
+            const active = files[activeFile];
+            const seen = new Set();
+
+            files.forEach((f, i) => {
+                // Satu chip per file (sheet-sheetnya jadi sub tab)
+                if (seen.has(f.fileKey)) return;
+                seen.add(f.fileKey);
+                const isActive = !!active && active.fileKey === f.fileKey;
+
+                const chip = document.createElement('div');
+                chip.className = 'file-chip' + (isActive ? ' active' : '');
+                chip.title = f.fileKey;
+                chip.setAttribute('role', 'button');
+                chip.tabIndex = 0;
+
+                const label = document.createElement('span');
+                label.className = 'file-name';
+                label.textContent = f.name;
+
+                const x = document.createElement('span');
+                x.className = 'file-x';
+                x.title = 'Hapus file ini';
+                x.innerHTML = '<i class="fas fa-times"></i>';
+                x.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const count = files.filter(o => o.fileKey === f.fileKey).length;
+                    const extra = count > 1 ? ' (termasuk ' + count + ' sub tab sheet-nya)' : '';
+                    if (confirm('Hapus file "' + f.name + '"' + extra + ' dari daftar?\n\nData file ini akan hilang dari tampilan (file asli di komputer Anda tidak terhapus).')) {
+                        removeFile(f.fileKey);
+                    }
+                });
+
+                chip.appendChild(label);
+                chip.appendChild(x);
+                const go = () => { if (!isActive) selectFile(i); };
+                chip.addEventListener('click', go);
+                chip.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+                });
+                fileTabs.appendChild(chip);
+            });
+
+            fileTabs.classList.toggle('hidden', files.length === 0);
+            renderSheetTabs();
+        }
+
+        // Sub tab: muncul hanya jika file yang aktif punya lebih dari satu sheet
+        function renderSheetTabs() {
+            sheetTabs.innerHTML = '';
+            const active = files[activeFile];
+            const group = active
+                ? files.map((f, i) => ({ f: f, i: i })).filter(o => o.f.fileKey === active.fileKey)
+                : [];
+
+            if (group.length < 2) {
+                sheetTabs.classList.add('hidden');
+                return;
+            }
+
+            group.forEach(o => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'sheet-btn' + (o.i === activeFile ? ' active' : '');
+                btn.textContent = o.f.sheetLabel || ('Sheet ' + (o.i + 1));
+                btn.addEventListener('click', () => { if (o.i !== activeFile) selectFile(o.i); });
+                sheetTabs.appendChild(btn);
+            });
+            sheetTabs.classList.remove('hidden');
+        }
+
+        function setTab(name) {
+            activeTab = name;
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.tab === name);
+            });
+            result.classList.toggle('hidden', name !== 'lengkap');
+            ringkasBox.classList.toggle('hidden', name !== 'ringkas');
+            // header sticky perlu dihitung ulang saat tabel terlihat
+            const f = files[activeFile];
+            if (name === 'lengkap' && f) fixStickyOffsets(f.table);
+        }
+
+        function selectFile(i) {
+            if (i < 0 || i >= files.length) return;
+            activeFile = i;
+            const f = files[i];
+
+            result.innerHTML = '';
+            result.appendChild(f.lengkapEl);
+            ringkasBox.innerHTML = '';
+            ringkasBox.appendChild(f.ringkasEl);
+
+            tabs.classList.remove('hidden');
+            renderFileTabs();
+            setTab(activeTab);
+        }
+
+        function resetAll() {
+            files.length = 0;
+            activeFile = -1;
+            fileTabs.innerHTML = '';
+            fileTabs.classList.add('hidden');
+            sheetTabs.innerHTML = '';
+            sheetTabs.classList.add('hidden');
+            tabs.classList.add('hidden');
+            ringkasBox.classList.add('hidden');
+            ringkasBox.innerHTML = '';
+            result.classList.remove('hidden');
+            result.innerHTML = EMPTY_HTML;
+            setStatus('');
+        }
+
+        // Hapus satu atau beberapa file (beserta semua sub tab sheet-nya)
+        function removeFile(keys) {
+            const set = new Set(Array.isArray(keys) ? keys : [keys]);
+            set.forEach(k => dbDelete(k).catch(err => console.error(err)));
+
+            const activeEntry = files[activeFile];
+            const firstIdx = files.findIndex(f => set.has(f.fileKey));
+            for (let i = files.length - 1; i >= 0; i--) {
+                if (set.has(files[i].fileKey)) files.splice(i, 1);
+            }
+            if (!files.length) { resetAll(); updateSaveText(); return; }
+            const keep = files.indexOf(activeEntry);
+            selectFile(keep >= 0 ? keep : Math.min(Math.max(firstIdx, 0), files.length - 1));
+            updateSaveText();
+        }
+
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.addEventListener('click', () => setTab(b.dataset.tab));
+        });
+
+
+        // Hitung ulang offset saat ukuran layar berubah
+        window.addEventListener('resize', () => {
+            const f = files[activeFile];
+            if (f && activeTab === 'lengkap') fixStickyOffsets(f.table);
+        });
+
+        // ===== Penyimpanan IndexedDB (file Excel asli disimpan, lalu dibaca ulang saat halaman dibuka) =====
+        const DB_NAME = 'stok-rekap-db';
+        const DB_STORE = 'files';
+        let dbPromise = null;
+
+        function openDB() {
+            if (dbPromise) return dbPromise;
+            dbPromise = new Promise((resolve, reject) => {
+                if (!window.indexedDB) { reject(new Error('IndexedDB tidak didukung browser ini.')); return; }
+                const req = indexedDB.open(DB_NAME, 1);
+                req.onupgradeneeded = () => { req.result.createObjectStore(DB_STORE, { keyPath: 'fileKey' }); };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+            return dbPromise;
+        }
+
+        function dbTx(mode, fn) {
+            return openDB().then(db => new Promise((resolve, reject) => {
+                const tx = db.transaction(DB_STORE, mode);
+                const req = fn(tx.objectStore(DB_STORE));
+                tx.oncomplete = () => resolve(req ? req.result : undefined);
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error);
+            }));
+        }
+
+        function dbSave(record) { return dbTx('readwrite', s => s.put(record)); }
+        function dbDelete(key) { return dbTx('readwrite', s => s.delete(key)); }
+        function dbClear() { return dbTx('readwrite', s => s.clear()); }
+        function dbLoadAll() { return dbTx('readonly', s => s.getAll()); }
+
+        const saveText = document.getElementById('saveText');
+        function updateSaveText() {
+            const total = new Set(files.map(f => f.fileKey)).size;
+            saveText.textContent = total ? 'Tersimpan otomatis di browser (' + total + ' file)' : '';
+        }
+
+        function nextSeq() {
+            return files.reduce((m, f) => Math.max(m, f.seq || 0), 0) + 1;
+        }
+
+        // Baca satu file Excel (ArrayBuffer) menjadi satu atau beberapa entry sheet
+        function processFile(fileName, buffer, seq, errors) {
+            if (typeof XLSX === 'undefined') {
+                throw new Error('Library Excel belum berhasil dimuat.');
+            }
+            const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true });
+
+            const sheetList = sheetsToRead(fileName, workbook);
+            const multi = sheetList.length > 1;
+            const entries = [];
+
+            sheetList.forEach(({ sn, label }) => {
+                const ws = workbook.Sheets[sn];
+                // Lewati sheet kosong (khusus untuk file multi-sheet)
+                if (multi && (!ws || !ws['!ref'])) return;
+                try {
+                    const built = buildFile(workbook, sn);
+                    entries.push({
+                        fileKey: fileName,
+                        seq: seq,
+                        buffer: buffer,
+                        name: cleanName(fileName),
+                        sheetLabel: multi ? label : null,
+                        table: built.table,
+                        lengkapEl: built.lengkapEl,
+                        ringkasEl: built.ringkasEl
+                    });
+                } catch (sheetErr) {
+                    console.error(sheetErr);
+                    errors.push(fileName + ' / ' + sn + ' (' + sheetErr.message + ')');
+                }
+            });
+
+            if (!entries.length) throw new Error('Tidak ada sheet yang bisa dibaca.');
+            return entries;
+        }
+
+        // Masukkan satu file (ArrayBuffer) ke daftar dan simpan ke IndexedDB
+        async function ingestFile(fileName, buffer, errors) {
+            // File dengan nama sama diganti (semua tab sheet-nya) dan tetap di urutan yang sama
+            const existing = files.find(f => f.fileKey === fileName);
+            const seq = existing ? existing.seq : nextSeq();
+
+            const entries = processFile(fileName, buffer, seq, errors);
+
+            const firstOld = files.findIndex(f => f.fileKey === fileName);
+            let insertAt;
+            if (firstOld >= 0) {
+                for (let i = files.length - 1; i >= 0; i--) {
+                    if (files[i].fileKey === fileName) files.splice(i, 1);
+                }
+                insertAt = firstOld;
+            } else {
+                insertAt = files.length;
+            }
+            files.splice(insertAt, 0, ...entries);
+
+            // Kegagalan simpan tidak menghentikan tampilan
+            let saveErr = null;
+            try {
+                await dbSave({ fileKey: fileName, seq: seq, buffer: buffer, savedAt: Date.now() });
+            } catch (dbErr) {
+                console.error(dbErr);
+                saveErr = dbErr;
+            }
+            return { insertAt: insertAt, saveErr: saveErr };
+        }
+
+        function beginBusy() {
+            setStatus('');
+            loading.classList.remove('hidden');
+            dropdownMenu.classList.add('hidden');
+        }
+
+        function finishBusy(errors, saveFailed, firstAdded) {
+            loading.classList.add('hidden');
+
+            const msgs = [];
+            if (errors.length) msgs.push('Gagal membaca: ' + errors.join('; '));
+            if (saveFailed) msgs.push('Data tidak bisa disimpan di browser (' + (saveFailed.message || saveFailed) + '), jadi akan hilang saat halaman ditutup');
+            if (msgs.length) setStatus(msgs.join(' | '));
+
+            if (files.length) {
+                selectFile(firstAdded >= 0 ? firstAdded : Math.max(activeFile, 0));
+            }
+            if (!saveFailed) updateSaveText();
+        }
+
+        // ===== Upload Excel (bisa banyak file sekaligus) =====
+        fileInput.addEventListener('change', async function (event) {
+            const list = Array.from(event.target.files || []);
+            if (!list.length) return;
+
+            beginBusy();
+            const errors = [];
+            let saveFailed = null;
+            let firstAdded = -1;
+
+            for (const file of list) {
+                try {
+                    const buffer = await file.arrayBuffer();
+                    const r = await ingestFile(file.name, buffer, errors);
+                    if (firstAdded === -1) firstAdded = r.insertAt;
+                    if (r.saveErr) saveFailed = r.saveErr;
+                } catch (error) {
+                    console.error(error);
+                    errors.push(file.name + ' (' + error.message + ')');
+                }
+            }
+
+            fileInput.value = ''; // supaya file yang sama bisa dipilih lagi
+            finishBusy(errors, saveFailed, firstAdded);
+        });
+
+        // ===== Backup JSON: simpan semua & buka kembali =====
+        function bufferToBase64(buf) {
+            const bytes = new Uint8Array(buf);
+            let bin = '';
+            const chunk = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunk) {
+                bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+            }
+            return btoa(bin);
+        }
+
+        function base64ToBuffer(b64) {
+            const bin = atob(b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return bytes.buffer;
+        }
+
+        function exportJSON() {
+            const unique = new Map();
+            files.forEach(f => { if (!unique.has(f.fileKey)) unique.set(f.fileKey, f); });
+            if (!unique.size) {
+                alert('Belum ada data yang bisa disimpan.');
+                return;
+            }
+
+            const list = Array.from(unique.values())
+                .sort((a, b) => (a.seq || 0) - (b.seq || 0))
+                .map(f => ({ fileKey: f.fileKey, seq: f.seq, data: bufferToBase64(f.buffer) }));
+
+            const payload = {
+                app: 'stok-rekap',
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                files: list
+            };
+
+            const d = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const stamp = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+                '_' + pad(d.getHours()) + pad(d.getMinutes());
+
+            const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'backup-stok-' + stamp + '.json';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+            saveText.textContent = 'Backup JSON disimpan (' + list.length + ' file)';
+        }
+
+        saveJsonBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            dropdownMenu.classList.add('hidden');
+            exportJSON();
+        });
+
+        jsonFile.addEventListener('change', async function (event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            beginBusy();
+            const errors = [];
+            let saveFailed = null;
+            let firstAdded = -1;
+
+            try {
+                const payload = JSON.parse(await file.text());
+                if (!payload || !Array.isArray(payload.files)) {
+                    throw new Error('Format backup tidak dikenali.');
+                }
+                const list = payload.files
+                    .filter(r => r && typeof r.fileKey === 'string' && typeof r.data === 'string')
+                    .sort((a, b) => (a.seq || 0) - (b.seq || 0));
+                if (!list.length) throw new Error('Backup tidak berisi file.');
+
+                for (const rec of list) {
+                    try {
+                        const r = await ingestFile(rec.fileKey, base64ToBuffer(rec.data), errors);
+                        if (firstAdded === -1) firstAdded = r.insertAt;
+                        if (r.saveErr) saveFailed = r.saveErr;
+                    } catch (err) {
+                        console.error(err);
+                        errors.push(rec.fileKey + ' (' + err.message + ')');
+                    }
+                }
+            } catch (error) {
+                console.error(error);
+                errors.push(file.name + ' (' + error.message + ')');
+            }
+
+            jsonFile.value = '';
+            finishBusy(errors, saveFailed, firstAdded);
+        });
+
+        // ===== Hapus pilihan data =====
+        function syncDeleteState() {
+            const cbs = Array.from(deleteList.querySelectorAll('input.del-cb'));
+            const n = cbs.filter(c => c.checked).length;
+            deleteAll.checked = n > 0 && n === cbs.length;
+            deleteConfirmBtn.disabled = n === 0;
+            deleteConfirmBtn.textContent = n ? 'Hapus (' + n + ')' : 'Hapus';
+        }
+
+        function closeDeleteModal() {
+            deleteModal.classList.add('hidden');
+            deleteModal.classList.remove('flex');
+        }
+
+        function openDeleteModal() {
+            const groups = new Map();
+            files.forEach(f => {
+                if (!groups.has(f.fileKey)) groups.set(f.fileKey, { name: f.name, sheets: 0 });
+                groups.get(f.fileKey).sheets++;
+            });
+            if (!groups.size) {
+                alert('Belum ada data yang bisa dihapus.');
+                return;
+            }
+
+            deleteList.innerHTML = '';
+            groups.forEach((g, key) => {
+                const row = document.createElement('label');
+                row.className = 'flex items-center gap-3 px-5 py-2.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = key;
+                cb.className = 'del-cb h-4 w-4';
+                cb.addEventListener('change', syncDeleteState);
+                const span = document.createElement('span');
+                span.textContent = g.name + (g.sheets > 1 ? '  (' + g.sheets + ' sheet)' : '');
+                row.appendChild(cb);
+                row.appendChild(span);
+                deleteList.appendChild(row);
+            });
+
+            deleteAll.checked = false;
+            syncDeleteState();
+            deleteModal.classList.remove('hidden');
+            deleteModal.classList.add('flex');
+        }
+
+        deleteBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            dropdownMenu.classList.add('hidden');
+            openDeleteModal();
+        });
+
+        deleteAll.addEventListener('change', () => {
+            deleteList.querySelectorAll('input.del-cb').forEach(c => { c.checked = deleteAll.checked; });
+            syncDeleteState();
+        });
+
+        deleteCancelBtn.addEventListener('click', closeDeleteModal);
+        deleteBackupBtn.addEventListener('click', exportJSON);
+        deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) closeDeleteModal(); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !deleteModal.classList.contains('hidden')) closeDeleteModal();
+        });
+
+        deleteConfirmBtn.addEventListener('click', () => {
+            const keys = Array.from(deleteList.querySelectorAll('input.del-cb'))
+                .filter(c => c.checked).map(c => c.value);
+            if (!keys.length) return;
+
+            const names = keys.map(k => {
+                const f = files.find(o => o.fileKey === k);
+                return '- ' + (f ? f.name : k);
+            }).join('\n');
+
+            if (confirm('Hapus ' + keys.length + ' file terpilih?\n\n' + names +
+                '\n\nData akan hilang dari tampilan dan penyimpanan browser (file asli di komputer Anda tidak terhapus).')) {
+                removeFile(keys);
+                closeDeleteModal();
+            }
+        });
+
+        // ===== Pulihkan data tersimpan saat halaman dibuka =====
+        (async function restoreFromDB() {
+            try {
+                const records = await dbLoadAll();
+                if (!records || !records.length) return;
+
+                loading.classList.remove('hidden');
+                records.sort((a, b) => (a.seq || 0) - (b.seq || 0));
+
+                const errors = [];
+                for (const rec of records) {
+                    try {
+                        const entries = processFile(rec.fileKey, rec.buffer, rec.seq || 0, errors);
+                        files.push(...entries);
+                    } catch (err) {
+                        console.error(err);
+                        errors.push(rec.fileKey + ' (' + err.message + ')');
+                    }
+                }
+
+                if (files.length) {
+                    selectFile(0);
+                    updateSaveText();
+                }
+                if (errors.length) setStatus('Sebagian data tersimpan gagal dipulihkan: ' + errors.join('; '));
+            } catch (err) {
+                console.warn('IndexedDB tidak tersedia:', err);
+            } finally {
+                loading.classList.add('hidden');
+            }
+        })();
+    })();
+    </script>
+</body>
+</html>
