@@ -1,1204 +1,1257 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laporan Rekapitulasi Stok Produk</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0f766e" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Stok Gajah Mas" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="description" content="Nilai Stock CV Gajah Mas - SFA stok akhir bulan" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+<title>Nilai Stock CV Gajah Mas</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --green:#0f766e;
+    --green-dark:#065f46;
+    --blue:#0284c7;
+    --blue-dark:#075985;
+    --border:#e2e8f0;
+    --text:#1e293b;
+    --muted:#64748b;
+    --red:#dc2626;
+    --amber:#d97706;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Segoe UI',Roboto,system-ui,-apple-system,sans-serif;
+    background:#eef2f6;color:var(--text);
+    display:flex;flex-direction:column;
+    height:100vh;height:100dvh;
+    overflow:hidden;
+  }
 
-    <style>
-        .dropdown-enter { animation: fadeIn 0.2s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  /* =========================================================
+     TOOLBAR
+     ========================================================= */
+  .toolbar{
+    flex:0 0 auto;
+    background:#fff;
+    border-bottom:1px solid var(--border);
+    box-shadow:0 1px 6px rgba(15,23,42,.08);
+    padding:4px 12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+    z-index:100;
+  }
 
-        /* ===== Tabel mode Lengkap ===== */
-        #result-container table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: center;
-            font-size: 13px;
-        }
-        
-        #result-container th {
-            background-color: #f8f9fa;
-            color: #5f6368;
-            font-weight: 500;
-            padding: 6px 8px;
-            border-bottom: 1px solid #e0e0e0;
-            font-size: 12px;
-            white-space: nowrap;
-        }
-        
-        #result-container td {
-            padding: 6px 8px;
-            border-bottom: 1px solid #f0f0f0;
-            white-space: nowrap;
-            color: #202124;
-        }
+  .stats-inline{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    flex:1 1 auto;
+    min-width:0;
+  }
+  .card{
+    background:#fff;
+    border-radius:7px;
+    padding:4px 9px;
+    border:1px solid var(--border);
+    border-left:3px solid var(--green);
+    white-space:nowrap;
+    flex:1 1 0;
+    min-width:150px;
+    overflow:hidden;
+  }
+  .card .lbl{
+    font-size:9px;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    color:var(--muted);
+    font-weight:600;
+    line-height:1.1;
+  }
+  .card .val{
+    font-size:12.5px;
+    font-weight:400;
+    color:var(--green-dark);
+    margin-top:1px;
+    line-height:1.2;
+    font-variant-numeric:tabular-nums;
+  }
+  .card .sub{
+    font-size:9px;
+    color:var(--muted);
+    margin-top:1px;
+    line-height:1.1;
+  }
+  .card.fitri{border-left-color:var(--green)}
+  .card.fitri .val{color:var(--green-dark)}
+  .card.ruarupa{border-left-color:var(--blue)}
+  .card.ruarupa .val{color:var(--blue-dark)}
+  .card.total{border-left-color:var(--amber)}
+  .card.total .val{color:#b45309}
 
-        #result-container tbody tr:nth-child(even) { background-color: #fafafa; }
-        #result-container tbody tr:hover { background-color: #f0f7ff; }
+  .controls{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    flex-wrap:wrap;
+    margin-left:auto;
+    flex:0 0 auto;
+  }
+  .controls select,
+  .controls input[type=text]{
+    font-family:inherit;
+    font-size:11px;
+    padding:2px 7px;
+    border-radius:6px;
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--text);
+    outline:none;
+    cursor:pointer;
+    transition:.15s;
+    height:24px;
+    line-height:1;
+  }
+  .controls select{min-width:110px}
+  .controls input[type=text]{min-width:115px;cursor:text}
+  .controls input[type=text]::placeholder{color:#94a3b8}
+  .controls select:focus,
+  .controls input[type=text]:focus{
+    border-color:var(--green);
+    box-shadow:0 0 0 2px rgba(15,118,110,.12);
+  }
 
-        /* Kotak tabel punya scroll sendiri (X dan Y) supaya sticky header bekerja */
-        .table-scroll {
-            width: 100%;
-            max-height: calc(100vh - 270px);
-            overflow: auto;
-            -webkit-overflow-scrolling: touch;
-        }
+  .btn-menu{
+    font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;
+    padding:2px 10px;border-radius:6px;
+    border:1px solid var(--border);
+    background:#fff;color:#475569;
+    transition:.15s;white-space:nowrap;
+    display:inline-flex;align-items:center;gap:5px;height:24px;
+  }
+  .btn-menu:hover{background:#f1f5f9;border-color:#cbd5e1;color:var(--text)}
 
-        /* Sticky header multi-row; nilai top dihitung otomatis lewat JavaScript */
-        #result-container thead th {
-            position: sticky;
-            top: 0;
-            z-index: 20;
-            background-color: #f8f9fa;
-            box-shadow: 0 1px 0 #e0e0e0;
-        }
+  /* ---------- DROPDOWN MENU ---------- */
+  .menu-wrap{position:relative}
+  .dropdown{
+    position:absolute;right:0;top:calc(100% + 8px);
+    background:#fff;border-radius:12px;min-width:245px;
+    box-shadow:0 14px 40px rgba(15,23,42,.24);
+    border:1px solid var(--border);overflow:hidden;
+    display:none;z-index:300;animation:pop .14s ease-out;
+  }
+  @keyframes pop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+  .dropdown.open{display:block}
+  .dropdown button{
+    display:flex;align-items:center;gap:11px;width:100%;
+    padding:11px 15px;background:none;border:none;cursor:pointer;
+    font-family:inherit;font-size:13px;color:var(--text);text-align:left;
+  }
+  .dropdown button:hover{background:#f1f5f9}
+  .dropdown button .ic{font-size:15px;width:20px;text-align:center}
+  .dropdown hr{border:none;border-top:1px solid var(--border);margin:4px 0}
+  .dropdown .danger{color:var(--red)}
+  .dropdown .danger:hover{background:#fef2f2}
+  .dropdown .hint{padding:8px 15px 10px;font-size:11px;color:var(--muted)}
 
-        /* ===== Tab file (satu tab per Excel) ===== */
-        .file-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            max-width: 300px;
-            padding: 6px 12px;
-            font-size: 12px;
-            color: #3c4043;
-            background: #fff;
-            border: 1px solid #dadce0;
-            border-radius: 9999px;
-            transition: background 0.15s, border-color 0.15s;
-            cursor: pointer;
-        }
-        .file-chip:hover { background: #f1f3f4; }
-        .file-chip.active { background: #1a73e8; border-color: #1a73e8; color: #fff; }
-        .file-chip .file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .file-chip .file-x { opacity: 0.6; font-size: 11px; padding: 0 2px; }
-        .file-chip .file-x:hover { opacity: 1; }
+  /* ---------- LAYOUT ---------- */
+  .container{
+    flex:1 1 auto;
+    min-height:0;
+    overflow-y:auto;
+    overflow-x:hidden;
+    padding:12px 20px 16px;
+    width:100%;
+    max-width:1400px;
+    margin:0 auto;
+    display:flex;
+    flex-direction:column;
+  }
+  #content{
+    flex:1 1 auto;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
 
-        /* ===== Sub tab sheet ===== */
-        .sheet-btn {
-            padding: 5px 16px;
-            font-size: 12px;
-            color: #5f6368;
-            background: #f1f3f4;
-            border: 1px solid transparent;
-            border-radius: 6px;
-            transition: background 0.15s, color 0.15s;
-        }
-        .sheet-btn:hover { background: #e8eaed; }
-        .sheet-btn.active { background: #e8f0fe; color: #1a73e8; border-color: #c6dafc; font-weight: 500; }
+  /* ---------- SECTION ---------- */
+  .section{
+    display:flex;
+    flex-direction:column;
+    flex:0 0 auto;
+    min-height:0;
+  }
+  .section:only-child{
+    flex:1 1 auto;
+  }
 
-        /* ===== Tab mode tampilan ===== */
-        .tab-btn {
-            padding: 8px 16px;
-            font-size: 13px;
-            color: #5f6368;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -1px;
-            transition: color 0.15s, border-color 0.15s;
-        }
-        .tab-btn:hover { color: #1a73e8; }
-        .tab-btn.active { color: #1a73e8; border-bottom-color: #1a73e8; font-weight: 500; }
+  .section-head{
+    display:flex;align-items:center;gap:12px;
+    padding:8px 16px;border-radius:12px 12px 0 0;
+    color:#fff;font-weight:700;font-size:13.5px;letter-spacing:.4px;
+    flex:0 0 auto;
+    background:linear-gradient(90deg,#075985,#0ea5e9);
+  }
+  .section-head .badge{
+    font-size:11px;font-weight:600;opacity:.95;
+    background:rgba(255,255,255,.22);padding:3px 10px;border-radius:20px;
+    margin-left:auto;
+  }
+  .section-head .badge + .badge{margin-left:8px}
 
-        /* ===== Tabel mode Ringkas ===== */
-        #ringkas-container table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-        #ringkas-container th {
-            position: sticky;
-            top: 0;
-            z-index: 20;
-            background-color: #8db4e2;
-            color: #000;
-            font-weight: 700;
-            padding: 8px 10px;
-            border: 1px solid #555;
-            text-align: center;
-            white-space: nowrap;
-        }
-        #ringkas-container td {
-            padding: 6px 10px;
-            border: 1px solid #555;
-            text-align: center;
-            white-space: nowrap;
-            color: #202124;
-        }
-        #ringkas-container td.produk { text-align: left; }
-        #ringkas-container td.ket { font-size: 11px; color: #c2410c; }
-        #ringkas-container tbody tr:hover { background-color: #f0f7ff; }
+  .table-wrap{
+    background:#fff;
+    border:1px solid var(--border);border-top:none;
+    border-radius:0 0 12px 12px;
+    box-shadow:0 1px 3px rgba(15,23,42,.06);
+    overflow:auto;
+    flex:1 1 auto;
+    min-height:150px;
+  }
+  .section:not(:only-child) .table-wrap{
+    max-height:55vh;
+  }
 
-        @media (max-width: 768px) {
-            #result-container table { font-size: 11px; }
-            #result-container th, #result-container td { padding: 5px 6px; }
-            .file-chip { max-width: 220px; }
-        }
-    </style>
+  table{border-collapse:separate;border-spacing:0;width:100%;font-size:13.3px;min-width:920px}
+  thead th{
+    position:sticky;top:0;z-index:5;
+    background:#f1f5f9;color:#334155;font-weight:700;font-size:11px;
+    text-transform:uppercase;letter-spacing:.6px;
+    padding:9px 12px;text-align:left;white-space:nowrap;
+    border-bottom:1px solid var(--border);
+    box-shadow:inset 0 -1px 0 var(--border);
+  }
+  thead th.num{text-align:right}
+  thead th.center{text-align:center}
+  tbody td{padding:8px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+  tbody td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  tbody td.center{text-align:center}
+  tbody tr:hover td{background:#f8fafc}
+  .col-no{width:48px;text-align:center;color:var(--muted)}
+  .nama{font-weight:600;color:#0f172a}
+
+  tr.subtotal td{
+    background:#f0f9ff;font-weight:700;color:var(--blue-dark);
+    border-top:2px solid #7dd3fc;border-bottom:none;
+  }
+
+  /* ---------- TABEL RINGKASAN BULANAN ---------- */
+  .section.summary .table-wrap{
+    max-height:none;
+  }
+  table.month-summary{
+    min-width:0;
+    font-size:13px;
+  }
+  table.month-summary thead th{
+    text-align:center;
+    padding:9px 10px;
+  }
+  table.month-summary thead th:first-child{
+    text-align:left;
+  }
+  table.month-summary tbody td{
+    padding:9px 10px;
+    border-bottom:1px solid #e2e8f0;
+  }
+  table.month-summary tbody td:first-child{
+    font-weight:700;
+    color:var(--blue-dark);
+    text-transform:uppercase;
+    letter-spacing:.3px;
+  }
+  table.month-summary tbody td.num{
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+  }
+  table.month-summary tbody tr:hover td{
+    background:#f0f9ff;
+  }
+  table.month-summary tr.total-row td{
+    background:#f0f9ff;
+    font-weight:700;
+    color:var(--blue-dark);
+    border-top:2px solid #7dd3fc;
+    border-bottom:none;
+  }
+  table.month-summary tr.total-row td:first-child{
+    color:var(--blue-dark);
+  }
+
+  /* ---------- EMPTY ---------- */
+  .empty{
+    background:#fff;border:2px dashed #cbd5e1;border-radius:16px;
+    padding:60px 24px;text-align:center;color:var(--muted);
+    flex:1 1 auto;
+    display:flex;flex-direction:column;justify-content:center;align-items:center;
+  }
+  .empty .big{font-size:52px;margin-bottom:14px}
+  .empty h3{color:var(--text);font-size:17px;margin-bottom:8px}
+  .empty p{font-size:13.5px;line-height:1.7;max-width:470px;margin:0 auto}
+
+  /* ---------- TOAST ---------- */
+  #toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(80px);
+    background:#0f172a;color:#fff;padding:12px 22px;border-radius:11px;font-size:13.5px;
+    box-shadow:0 10px 34px rgba(0,0,0,.3);opacity:0;transition:.3s;z-index:999;pointer-events:none;max-width:90vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast.ok{background:#065f46}
+  #toast.err{background:#991b1b}
+
+  /* ---------- DROP OVERLAY ---------- */
+  #drop{position:fixed;inset:0;background:rgba(15,118,110,.88);z-index:900;display:none;
+    place-items:center;color:#fff;font-size:22px;font-weight:700;text-align:center;padding:20px}
+  #drop.on{display:grid}
+
+
+  /* ---------- CATATAN ---------- */
+  .notes-badge{margin-left:auto;background:#dc2626;color:#fff;font-size:10.5px;font-weight:700;
+    padding:1px 7px;border-radius:20px;display:none}
+  .notes-badge.on{display:inline-block}
+  #notesModal .modal{max-width:640px}
+  #notesModal .modal-body{max-height:68vh;padding:14px 20px 18px}
+  .note-entry{border:1px solid var(--border);border-radius:11px;margin-bottom:14px;overflow:hidden}
+  .note-head{background:#f1f5f9;padding:9px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .note-head .nt{font-weight:700;font-size:13.5px;color:var(--text)}
+  .note-head .nd{font-size:11.5px;color:var(--muted);margin-left:auto}
+  .note-head .np{font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;padding:2px 9px;border-radius:20px}
+  .note-head .np.done{color:#065f46;background:#d1fae5}
+  .note-intro{padding:9px 14px 0;font-size:12.5px;color:var(--muted)}
+  .note-item{display:flex;gap:10px;padding:10px 14px;border-top:1px solid #f1f5f9;font-size:13px;line-height:1.5;cursor:pointer}
+  .note-item:first-of-type{border-top:none}
+  .note-item input{width:16px;height:16px;margin-top:2px;accent-color:var(--green);flex:0 0 auto;cursor:pointer}
+  .note-item.done .nbody{opacity:.5;text-decoration:line-through}
+  .note-item b{color:var(--text)}
+  .note-item ul{margin:4px 0 0 16px;font-size:12.5px;color:#475569}
+  .note-item table{border-collapse:collapse;margin-top:6px;font-size:12px;min-width:0;width:auto}
+  .note-item td,.note-item th{border:1px solid var(--border);padding:3px 9px;text-align:right;position:static;background:#fff;font-size:12px;text-transform:none;letter-spacing:0}
+  .note-item th{background:#f8fafc;font-weight:600}
+  .note-item td:first-child,.note-item th:first-child{text-align:left}
+
+  /* ---------- MODAL EXPORT ---------- */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(15,23,42,.55);
+    z-index:1100;display:none;
+    align-items:center;justify-content:center;padding:20px;
+    animation:fade .15s ease-out;
+  }
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .modal-overlay.on{display:flex}
+  .modal{
+    background:#fff;border-radius:14px;
+    max-width:420px;width:100%;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);
+    overflow:hidden;
+    animation:pop2 .18s ease-out;
+  }
+  @keyframes pop2{from{opacity:0;transform:translateY(-10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+  .modal h3{
+    padding:16px 20px;border-bottom:1px solid var(--border);
+    font-size:15px;color:var(--text);
+    display:flex;align-items:center;gap:10px;
+  }
+  .modal-body{padding:12px 20px;max-height:50vh;overflow-y:auto}
+  .modal-body label{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 4px;cursor:pointer;font-size:13.5px;
+    border-bottom:1px solid #f1f5f9;
+    transition:.12s;
+  }
+  .modal-body label:last-child{border-bottom:none}
+  .modal-body label:hover{color:var(--blue-dark)}
+  .modal-body input[type=checkbox]{
+    width:16px;height:16px;accent-color:var(--blue);cursor:pointer;flex:0 0 auto;
+  }
+  .select-all{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:0 20px 10px;margin-top:4px;
+    font-size:11.5px;color:var(--muted);
+  }
+  .select-all button{
+    background:none;border:none;cursor:pointer;
+    color:var(--blue);font-weight:600;font-size:11.5px;font-family:inherit;
+    padding:2px 4px;
+  }
+  .select-all button:hover{text-decoration:underline}
+  .modal-actions{
+    padding:12px 20px;border-top:1px solid var(--border);
+    display:flex;gap:8px;justify-content:flex-end;background:#f8fafc;
+  }
+  .modal-actions button{
+    font-family:inherit;font-size:12.5px;font-weight:600;
+    padding:7px 16px;border-radius:8px;cursor:pointer;
+    border:1px solid var(--border);transition:.15s;
+  }
+  .modal-actions .btn-ghost{background:#fff;color:var(--text)}
+  .modal-actions .btn-ghost:hover{background:#f1f5f9;border-color:#cbd5e1}
+  .modal-actions .btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .modal-actions .btn-primary:hover{background:var(--blue-dark);border-color:var(--blue-dark)}
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width:900px){
+    .controls{width:100%;margin-left:0}
+    .controls select,
+    .controls input[type=text]{flex:1;min-width:0}
+    .menu-wrap{margin-left:auto}
+  }
+  @media (max-width:720px){
+    .card .val{font-size:12px}
+    .card{min-width:120px}
+    table.month-summary{font-size:11.5px}
+    table.month-summary thead th,
+    table.month-summary tbody td{padding:6px 6px}
+  }
+</style>
 </head>
+<body>
 
-<body class="bg-gray-50 text-gray-800 font-sans p-6 min-h-screen">
+<header class="toolbar">
+  <div class="stats-inline" id="stats"></div>
 
-    <div class="w-full">
-        
-        <div class="flex justify-between items-start mb-4">
-            <div>
-                <h1 class="text-base font-normal text-gray-900">Laporan Rekapitulasi Stok Produk</h1>
-                <p class="text-red-500 text-xs mt-1 font-medium" id="statusText"></p>
-                <p class="text-gray-400 text-xs mt-1" id="saveText"></p>
-            </div>
-            
-            <div class="relative">
-                <button id="menuBtn" class="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition focus:outline-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                    </svg>
-                </button>
+  <div class="controls">
+    <select id="monthFilter"></select>
 
-                <div id="dropdownMenu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-100 z-50 dropdown-enter">
-                    <div class="py-1">
-                        <div class="px-4 py-2 border-b border-gray-100">
-                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Aksi</p>
-                        </div>
-                        <label for="excelFile" class="cursor-pointer flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
-                            <i class="fas fa-file-excel text-green-500 w-5 mr-3 text-center"></i>
-                            Upload File Excel
-                        </label>
-                        <input type="file" id="excelFile" class="hidden" accept=".xlsb,.xlsx,.xls" multiple>
-                        
-                        <a href="#" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
-                            <i class="fas fa-download text-blue-500 w-5 mr-3 text-center"></i>
-                            Download Template
-                        </a>
-                        <div class="border-t border-gray-100 my-1"></div>
-                        <a href="#" id="saveJsonBtn" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
-                            <i class="fas fa-save text-blue-500 w-5 mr-3 text-center"></i>
-                            Simpan Semua (JSON)
-                        </a>
-                        <label for="jsonFile" class="cursor-pointer flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
-                            <i class="fas fa-folder-open text-amber-500 w-5 mr-3 text-center"></i>
-                            Buka Backup JSON
-                        </label>
-                        <input type="file" id="jsonFile" class="hidden" accept=".json,application/json">
-                        <div class="border-t border-gray-100 my-1"></div>
-                        <a href="#" id="deleteBtn" class="flex items-center px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition">
-                            <i class="fas fa-trash-alt w-5 mr-3 text-center"></i>
-                            Hapus Pilihan Data...
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <select id="categoryFilter">
+      <option value="ALL">Semua Kategori</option>
+      <option value="Fitri">Fitri</option>
+      <option value="Rua Rupa">Rua Rupa</option>
+    </select>
 
-        <div id="loading" class="hidden text-sm text-orange-600 font-medium mb-3">
-            <i class="fas fa-spinner fa-spin mr-2"></i> Memproses file Excel... Silakan tunggu.
-        </div>
+    <input type="text" id="searchInput" placeholder="Cari barang..." />
 
-        <!-- Satu tab per file Excel -->
-        <div id="fileTabs" class="hidden flex flex-wrap gap-2 mb-3"></div>
-
-        <!-- Sub tab: sheet dalam satu file (mis. Fitri, Mie, Margarine, WHOSI) -->
-        <div id="sheetTabs" class="hidden flex flex-wrap gap-1 mb-3"></div>
-
-        <!-- Tab mode tampilan: Lengkap / Ringkas -->
-        <div id="tabs" class="hidden border-b border-gray-200 mb-3">
-            <div class="flex gap-1">
-                <button type="button" class="tab-btn active" data-tab="lengkap">Lengkap (per tanggal)</button>
-                <button type="button" class="tab-btn" data-tab="ringkas">Ringkas</button>
-            </div>
-        </div>
-
-        <!-- JANGAN pakai overflow-hidden — memblokir sticky header -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 w-full">
-            <div class="w-full hidden" id="ringkas-container"></div>
-            <div class="w-full" id="result-container"></div>
-        </div>
-
+    <div class="menu-wrap">
+      <button class="btn-menu" id="menuBtn">☰ Menu</button>
+      <div class="dropdown" id="menuDropdown">
+        <button data-act="upload"><span class="ic">📤</span> Upload Excel</button>
+        <button data-act="save"><span class="ic">💾</span> Simpan ke Excel</button>
+        <button data-act="notes"><span class="ic">📝</span> Catatan <span class="notes-badge" id="notesBadge"></span></button>
+        <hr>
+        <button data-act="delete" class="danger"><span class="ic">🗑️</span> Hapus Data Bulan Ini</button>
+        <button data-act="deleteAll" class="danger"><span class="ic">❌</span> Hapus Semua Data</button>
+        <div class="hint">Data tersimpan otomatis di browser</div>
+      </div>
     </div>
+  </div>
+</header>
 
-    <!-- Jendela pilih data yang akan dihapus -->
-    <div id="deleteModal" class="hidden fixed inset-0 items-center justify-center bg-black/40 p-4" style="z-index:100;">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div class="px-5 pt-5 pb-3">
-                <h2 class="text-base font-medium text-gray-900">Hapus pilihan data</h2>
-                <p class="text-xs text-gray-500 mt-1">Centang file yang ingin dihapus. File asli di komputer Anda tidak ikut terhapus.</p>
-            </div>
-            <label class="flex items-center gap-3 px-5 py-2 border-y border-gray-100 bg-gray-50 text-sm text-gray-700 cursor-pointer">
-                <input type="checkbox" id="deleteAll" class="h-4 w-4">
-                <span>Pilih semua</span>
-            </label>
-            <div id="deleteList" class="max-h-64 overflow-y-auto"></div>
-            <div class="px-5 py-3 border-t border-gray-100 flex items-center justify-between gap-3">
-                <button type="button" id="deleteBackupBtn" class="text-xs text-blue-600 hover:underline">
-                    <i class="fas fa-save mr-1"></i>Simpan JSON dulu
-                </button>
-                <div class="flex gap-2">
-                    <button type="button" id="deleteCancelBtn" class="px-4 py-2 text-sm rounded-lg text-gray-700 hover:bg-gray-100">Batal</button>
-                    <button type="button" id="deleteConfirmBtn" class="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed" disabled>Hapus</button>
-                </div>
-            </div>
-        </div>
+<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" multiple hidden />
+<div id="drop">📂 Lepaskan file Excel di sini</div>
+
+<main class="container">
+  <section id="content"></section>
+</main>
+
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <h3>💾 Simpan ke Excel</h3>
+    <div class="modal-body" id="exportList"></div>
+    <div class="select-all">
+      <span>Pilih bulan yang ingin disimpan</span>
+      <button id="toggleAll" type="button">Pilih Semua</button>
     </div>
-
-    <script>
-    (function () {
-        const fileInput = document.getElementById('excelFile');
-        const loading = document.getElementById('loading');
-        const statusText = document.getElementById('statusText');
-        const result = document.getElementById('result-container');
-        const ringkasBox = document.getElementById('ringkas-container');
-        const fileTabs = document.getElementById('fileTabs');
-        const sheetTabs = document.getElementById('sheetTabs');
-        const tabs = document.getElementById('tabs');
-        const menuBtn = document.getElementById('menuBtn');
-        const dropdownMenu = document.getElementById('dropdownMenu');
-        const deleteBtn = document.getElementById('deleteBtn');
-        const saveJsonBtn = document.getElementById('saveJsonBtn');
-        const jsonFile = document.getElementById('jsonFile');
-        const deleteModal = document.getElementById('deleteModal');
-        const deleteList = document.getElementById('deleteList');
-        const deleteAll = document.getElementById('deleteAll');
-        const deleteConfirmBtn = document.getElementById('deleteConfirmBtn');
-        const deleteCancelBtn = document.getElementById('deleteCancelBtn');
-        const deleteBackupBtn = document.getElementById('deleteBackupBtn');
-
-        const EMPTY_HTML =
-            '<div class="p-8 text-center text-gray-400 text-sm">' +
-            '<i class="fas fa-file-upload text-3xl mb-3 text-gray-300"></i>' +
-            '<p>Belum ada data. Silakan unggah satu atau beberapa file Excel melalui menu di pojok kanan atas.</p>' +
-            '</div>';
-
-        // Daftar file yang sudah diunggah: {key, name, table, lengkapEl, ringkasEl}
-        const files = [];
-        let activeFile = -1;
-        let activeTab = 'lengkap';
-
-        result.innerHTML = EMPTY_HTML;
-
-        menuBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            dropdownMenu.classList.toggle('hidden');
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!dropdownMenu.contains(e.target) && !menuBtn.contains(e.target)) {
-                dropdownMenu.classList.add('hidden');
-            }
-        });
-
-        function setStatus(msg) {
-            statusText.textContent = msg || '';
-        }
-
-        function normalizeText(value) {
-            return String(value || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
-        }
-
-        function isTargetDate(text) {
-            const t = normalizeText(text);
-            return (
-                t.includes('31/09/2026') || t.includes('31-09-2026') || t.includes('31.09.2026') ||
-                t.includes('31/09/26') || t.includes('31-09-26') || t.includes('31.09.26')
-            );
-        }
-
-        function limitToThreeRowsAfterTarget(table) {
-            const rows = Array.from(table.querySelectorAll('tr'));
-            let targetIndex = -1;
-
-            for (let i = 0; i < rows.length; i++) {
-                if (isTargetDate(rows[i].textContent)) {
-                    targetIndex = i;
-                    break;
-                }
-            }
-
-            if (targetIndex === -1) return { found: false, shown: rows.length };
-
-            const lastIndex = Math.min(targetIndex + 3, rows.length - 1);
-            for (let i = lastIndex + 1; i < rows.length; i++) {
-                rows[i].remove();
-            }
-            return { found: true, shown: lastIndex + 1, targetIndex: targetIndex };
-        }
-
-        // Hitung offset "top" tiap baris header secara otomatis (tabel harus sedang tampil)
-        function fixStickyOffsets(table) {
-            const headRows = table.querySelectorAll('thead tr');
-            let offset = 0;
-            headRows.forEach(tr => {
-                Array.from(tr.cells).forEach(cell => { cell.style.top = offset + 'px'; });
-                offset += tr.getBoundingClientRect().height;
-            });
-        }
-
-        // ===== Mode Ringkas =====
-
-        // Ubah <table> jadi grid 2D dengan colspan/rowspan dijabarkan
-        function tableToGrid(table) {
-            const grid = [];
-            Array.from(table.querySelectorAll('tr')).forEach((tr, r) => {
-                grid[r] = grid[r] || [];
-                let c = 0;
-                Array.from(tr.cells).forEach(cell => {
-                    while (grid[r][c] !== undefined) c++;
-                    const cs = parseInt(cell.getAttribute('colspan') || '1', 10);
-                    const rs = parseInt(cell.getAttribute('rowspan') || '1', 10);
-                    const text = (cell.textContent || '').replace(/\u00a0/g, ' ').trim();
-                    for (let i = 0; i < rs; i++) {
-                        grid[r + i] = grid[r + i] || [];
-                        for (let j = 0; j < cs; j++) grid[r + i][c + j] = text;
-                    }
-                    c += cs;
-                });
-            });
-            return grid;
-        }
-
-        function toNum(v) {
-            const n = parseFloat(String(v || '').replace(/,/g, '').replace(/\s/g, ''));
-            return isNaN(n) ? 0 : n;
-        }
-
-        function fmt(n) {
-            return String(Math.round(n * 100) / 100);
-        }
-
-        // Kenali struktur tabel: baris sub-header (msk | klr | stok...), daftar produk, baris stok awal, baris tanggal
-        function parseStruct(grid) {
-            const dateRe = /^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/;
-            const isMsk = v => /^(msk|masuk)$/.test(v);
-            const isKlr = v => /^(klr|keluar)$/.test(v);
-            const isStok = v => /^stok/.test(v); // cocok untuk "stok", "stok sfa", dst.
-            const norm = row => (row || []).map(v => (v || '').toLowerCase().trim());
-
-            let subIdx = -1;
-            for (let i = 0; i < grid.length; i++) {
-                const low = norm(grid[i]);
-                if (low.some(isMsk) && low.some(isKlr) && low.some(isStok)) { subIdx = i; break; }
-            }
-            if (subIdx === -1) return null;
-
-            const sub = norm(grid[subIdx]);
-            const products = [];
-            for (let c = 0; c < sub.length - 2; c++) {
-                if (isMsk(sub[c]) && isKlr(sub[c + 1]) && isStok(sub[c + 2])) {
-                    const name = ((grid[subIdx - 1] || [])[c] || '').trim() || ('Produk ' + (products.length + 1));
-                    products.push({ name: name, c: c });
-                    c += 2;
-                }
-            }
-            if (!products.length) return null;
-
-            // Baris stok awal (kolom tanggal kosong) dan baris-baris tanggal
-            let initRow = null;
-            const dateRows = [];
-            for (let r = subIdx + 1; r < grid.length; r++) {
-                const row = grid[r] || [];
-                const first = row[0] || '';
-                if (dateRe.test(first)) dateRows.push(row);
-                else if (first === '' && !initRow && dateRows.length === 0) initRow = row;
-            }
-
-            return { subIdx: subIdx, products: products, initRow: initRow, dateRows: dateRows };
-        }
-
-        // Hapus kolom tertentu dari tabel (mulai dari baris fromRow), aman untuk colspan/rowspan
-        function removeColumns(table, cols, fromRow) {
-            const occupied = [];
-            Array.from(table.querySelectorAll('tr')).forEach((tr, r) => {
-                occupied[r] = occupied[r] || new Set();
-                let c = 0;
-                Array.from(tr.cells).forEach(cell => {
-                    while (occupied[r].has(c)) c++;
-                    const cs = parseInt(cell.getAttribute('colspan') || '1', 10);
-                    const rs = parseInt(cell.getAttribute('rowspan') || '1', 10);
-                    for (let i = 1; i < rs; i++) {
-                        occupied[r + i] = occupied[r + i] || new Set();
-                        for (let j = 0; j < cs; j++) occupied[r + i].add(c + j);
-                    }
-                    if (r >= fromRow) {
-                        let removed = 0;
-                        for (let j = 0; j < cs; j++) if (cols.has(c + j)) removed++;
-                        if (removed === cs) cell.remove();
-                        else if (removed > 0) cell.setAttribute('colspan', String(cs - removed));
-                    }
-                    c += cs;
-                });
-            });
-        }
-
-        // Sembunyikan produk yang masuk, keluar, dan stok-nya 0 semua. Mengembalikan jumlah produk yang disembunyikan.
-        function hideZeroProducts(table) {
-            const st = parseStruct(tableToGrid(table));
-            if (!st) return 0;
-
-            const check = st.dateRows.concat(st.initRow ? [st.initRow] : []);
-            if (!check.length) return 0;
-
-            const cols = new Set();
-            let hidden = 0;
-            st.products.forEach(p => {
-                const allZero = check.every(row =>
-                    toNum(row[p.c]) === 0 && toNum(row[p.c + 1]) === 0 && toNum(row[p.c + 2]) === 0);
-                if (allZero) {
-                    hidden++;
-                    cols.add(p.c); cols.add(p.c + 1); cols.add(p.c + 2);
-                }
-            });
-
-            if (hidden) removeColumns(table, cols, Math.max(st.subIdx - 1, 0));
-            return hidden;
-        }
-
-        // Hitung ringkasan per produk dari tabel yang sudah dibatasi baris tanggalnya
-        function buildRingkas(table) {
-            const st = parseStruct(tableToGrid(table));
-            if (!st) return null;
-            const products = st.products, initRow = st.initRow, dateRows = st.dateRows;
-
-            const items = products.map(p => {
-                let masuk = 0, keluar = 0, lastStok = null;
-                dateRows.forEach(row => {
-                    masuk += toNum(row[p.c]);
-                    keluar += toNum(row[p.c + 1]);
-                    const s = row[p.c + 2] || '';
-                    if (s !== '') lastStok = toNum(s);
-                });
-                const awal = (initRow && (initRow[p.c + 2] || '') !== '') ? toNum(initRow[p.c + 2]) : 0;
-                const hitung = awal + masuk - keluar;
-                const akhir = lastStok !== null ? lastStok : hitung;
-                const selisih = Math.round((hitung - akhir) * 100) / 100;
-                return { name: p.name, awal: awal, masuk: masuk, keluar: keluar, akhir: akhir, selisih: selisih };
-            });
-
-            return {
-                items: items,
-                dari: dateRows.length ? dateRows[0][0] : '',
-                sampai: dateRows.length ? dateRows[dateRows.length - 1][0] : ''
-            };
-        }
-
-        function buildRingkasEl(table, hiddenCount) {
-            const box = document.createElement('div');
-            const data = buildRingkas(table);
-
-            if (!data) {
-                const msg = hiddenCount > 0
-                    ? 'Semua ' + hiddenCount + ' produk bernilai 0 (masuk, keluar, dan stok), jadi tidak ditampilkan.'
-                    : 'Mode Ringkas tidak dapat dibuat: kolom msk / klr / stok tidak ditemukan.';
-                box.innerHTML = '<div class="p-8 text-center text-gray-400 text-sm"></div>';
-                box.firstChild.textContent = msg;
-                return box;
-            }
-
-            if (data.dari || hiddenCount > 0) {
-                const info = document.createElement('p');
-                info.className = 'px-4 pt-3 pb-2 text-xs text-gray-500';
-                const parts = [];
-                if (data.dari) parts.push('Periode: ' + data.dari + (data.sampai && data.sampai !== data.dari ? ' s/d ' + data.sampai : ''));
-                if (hiddenCount > 0) parts.push(hiddenCount + ' produk disembunyikan karena masuk, keluar, dan stok semuanya 0');
-                info.textContent = parts.join('  |  ');
-                box.appendChild(info);
-            }
-
-            const wrap = document.createElement('div');
-            wrap.className = 'table-scroll';
-            const t = document.createElement('table');
-
-            const thead = document.createElement('thead');
-            const hr = document.createElement('tr');
-            ['PRODUK', 'STOK AWAL', 'MASUK', 'KELUAR', 'STOK AKHIR', 'KET'].forEach(h => {
-                const th = document.createElement('th');
-                th.textContent = h;
-                hr.appendChild(th);
-            });
-            thead.appendChild(hr);
-            t.appendChild(thead);
-
-            const tbody = document.createElement('tbody');
-            data.items.forEach(it => {
-                const tr = document.createElement('tr');
-                const vals = [it.name, fmt(it.awal), fmt(it.masuk), fmt(it.keluar), fmt(it.akhir),
-                    it.selisih !== 0 ? 'Selisih ' + (it.selisih > 0 ? '+' : '') + fmt(it.selisih) : ''];
-                const cls = ['produk', '', '', '', '', 'ket'];
-                vals.forEach((v, i) => {
-                    const td = document.createElement('td');
-                    td.textContent = v;
-                    if (cls[i]) td.className = cls[i];
-                    tr.appendChild(td);
-                });
-                tbody.appendChild(tr);
-            });
-            t.appendChild(tbody);
-
-            wrap.appendChild(t);
-            box.appendChild(wrap);
-            return box;
-        }
-
-        // Aturan multi-sheet: file yang namanya mengandung teks di "match" akan dibaca sampai "maxSheets" sheet.
-        // Tiap sheet jadi sub tab dengan nama dari "sheetLabels" (urut sesuai urutan sheet di Excel).
-        // File lain hanya membaca sheet pertama.
-        const MULTI_SHEET_RULES = [
-            { match: 'MINYAK', maxSheets: 4, sheetLabels: ['Fitri', 'Mie', 'Margarine', 'WHOSI'] }
-        ];
-
-        // Mengembalikan daftar {sn: nama sheet asli, label: nama sub tab}
-        function sheetsToRead(fileName, workbook) {
-            const upper = fileName.toUpperCase();
-            const rule = MULTI_SHEET_RULES.find(r => upper.includes(r.match.toUpperCase()));
-            const limit = rule ? rule.maxSheets : 1;
-            return workbook.SheetNames.slice(0, limit).map((sn, i) => ({
-                sn: sn,
-                label: (rule && rule.sheetLabels && rule.sheetLabels[i]) || sn
-            }));
-        }
-
-        // ===== Membangun satu sheet (tabel Lengkap + Ringkas) dari satu workbook =====
-        function buildFile(workbook, sheetName) {
-            if (!workbook || !workbook.SheetNames || !workbook.SheetNames.length) {
-                throw new Error('Workbook tidak mempunyai sheet.');
-            }
-
-            const worksheet = workbook.Sheets[sheetName];
-            if (!worksheet) throw new Error('Sheet "' + sheetName + '" tidak dapat dibaca.');
-
-            const htmlTable = XLSX.utils.sheet_to_html(worksheet, { editable: false });
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = htmlTable;
-            
-            const table = tempDiv.querySelector('table');
-            if (!table) throw new Error('Tabel hasil Excel tidak berhasil dibuat.');
-
-            // A. Hapus baris judul "STOK ..." (mis. STOK KECAP & SAMBAL, STOK MINYAK GORENG CURAH)
-            const rows = Array.from(table.querySelectorAll('tr'));
-            for (let i = 0; i < Math.min(rows.length, 5); i++) {
-                const filled = Array.from(rows[i].cells)
-                    .map(c => (c.textContent || '').replace(/\u00a0/g, ' ').trim())
-                    .filter(t => t !== '');
-                if (filled.length === 1 && filled[0].toUpperCase().startsWith('STOK ')) {
-                    rows[i].remove();
-                    break;
-                }
-            }
-
-            // B. Gabungkan baris "BULAN SEPTEMBER" dan "TAHUN 2026"
-            let bulanRow = null;
-            let tahunRow = null;
-            const currentRows = Array.from(table.querySelectorAll('tr'));
-            
-            for (let i = 0; i < Math.min(currentRows.length, 10); i++) {
-                const text = currentRows[i].textContent.toLowerCase();
-                if (text.includes('bulan') && !bulanRow) bulanRow = currentRows[i];
-                if (text.includes('tahun') && !tahunRow) tahunRow = currentRows[i];
-            }
-
-            if (bulanRow && tahunRow && bulanRow !== tahunRow) {
-                if (bulanRow.cells.length >= 2 && tahunRow.cells.length >= 2) {
-                    const b1 = bulanRow.cells[0].textContent.trim();
-                    const b2 = bulanRow.cells[1].textContent.trim();
-                    const t1 = tahunRow.cells[0].textContent.trim();
-                    const t2 = tahunRow.cells[1].textContent.trim();
-                    
-                    bulanRow.cells[0].textContent = b1 + ' ' + b2;
-                    bulanRow.cells[1].textContent = t1 + ' ' + t2;
-                    
-                    tahunRow.remove();
-                }
-            }
-
-            // C. Pindahkan baris header ke <thead> agar sticky berfungsi
-            const allRows = Array.from(table.querySelectorAll('tr'));
-            let headerEndIndex = 0;
-
-            for (let i = 0; i < Math.min(allRows.length, 8); i++) {
-                const firstCell = (allRows[i].cells[0]?.textContent || '').trim();
-                const isDateRow = /^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/.test(firstCell);
-                const isInitialStockRow = !isDateRow && firstCell === '' &&
-                    Array.from(allRows[i].cells).slice(1).some(c => /^\d+$/.test((c.textContent || '').trim()));
-
-                if (isDateRow || isInitialStockRow) {
-                    headerEndIndex = i;
-                    break;
-                }
-                headerEndIndex = i + 1;
-            }
-
-            if (headerEndIndex > 0) {
-                let thead = table.querySelector('thead');
-                if (!thead) {
-                    thead = document.createElement('thead');
-                    table.insertBefore(thead, table.firstChild);
-                }
-                let tbody = table.querySelector('tbody');
-                if (!tbody) {
-                    tbody = document.createElement('tbody');
-                    table.appendChild(tbody);
-                }
-
-                const headerRows = allRows.slice(0, headerEndIndex);
-                headerRows.forEach(row => {
-                    Array.from(row.cells).forEach(cell => {
-                        if (cell.tagName.toLowerCase() === 'td') {
-                            const th = document.createElement('th');
-                            th.innerHTML = cell.innerHTML;
-                            Array.from(cell.attributes).forEach(attr => {
-                                if (attr.name !== 'class') th.setAttribute(attr.name, attr.value);
-                            });
-                            cell.replaceWith(th);
-                        }
-                    });
-                    thead.appendChild(row);
-                });
-
-                const remaining = Array.from(table.querySelectorAll('tr')).filter(r => r.parentElement !== thead);
-                remaining.forEach(r => tbody.appendChild(r));
-            }
-
-            limitToThreeRowsAfterTarget(table);
-
-            // Sembunyikan produk yang masuk, keluar, dan stok-nya 0 semua (berlaku untuk Lengkap & Ringkas)
-            const hiddenCount = hideZeroProducts(table);
-
-            const lengkapEl = document.createElement('div');
-            if (hiddenCount > 0) {
-                const note = document.createElement('p');
-                note.className = 'px-4 pt-3 pb-2 text-xs text-gray-500';
-                note.textContent = hiddenCount + ' produk disembunyikan karena masuk, keluar, dan stok semuanya 0';
-                lengkapEl.appendChild(note);
-            }
-            const scroll = document.createElement('div');
-            scroll.className = 'table-scroll';
-            scroll.appendChild(table);
-            lengkapEl.appendChild(scroll);
-
-            const ringkasEl = buildRingkasEl(table, hiddenCount);
-
-            return { table: table, lengkapEl: lengkapEl, ringkasEl: ringkasEl };
-        }
-
-        // ===== Tab file & tab mode =====
-
-        // "4. SEPTEMBER NISSIN 2026 (3).xlsx" -> "4. SEPTEMBER NISSIN 2026"
-        function cleanName(fileName) {
-            return fileName.replace(/\.[^.]+$/, '').replace(/\s*\(\d+\)\s*$/, '').trim() || fileName;
-        }
-
-        function renderFileTabs() {
-            fileTabs.innerHTML = '';
-            const active = files[activeFile];
-            const seen = new Set();
-
-            files.forEach((f, i) => {
-                // Satu chip per file (sheet-sheetnya jadi sub tab)
-                if (seen.has(f.fileKey)) return;
-                seen.add(f.fileKey);
-                const isActive = !!active && active.fileKey === f.fileKey;
-
-                const chip = document.createElement('div');
-                chip.className = 'file-chip' + (isActive ? ' active' : '');
-                chip.title = f.fileKey;
-                chip.setAttribute('role', 'button');
-                chip.tabIndex = 0;
-
-                const label = document.createElement('span');
-                label.className = 'file-name';
-                label.textContent = f.name;
-
-                const x = document.createElement('span');
-                x.className = 'file-x';
-                x.title = 'Hapus file ini';
-                x.innerHTML = '<i class="fas fa-times"></i>';
-                x.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const count = files.filter(o => o.fileKey === f.fileKey).length;
-                    const extra = count > 1 ? ' (termasuk ' + count + ' sub tab sheet-nya)' : '';
-                    if (confirm('Hapus file "' + f.name + '"' + extra + ' dari daftar?\n\nData file ini akan hilang dari tampilan (file asli di komputer Anda tidak terhapus).')) {
-                        removeFile(f.fileKey);
-                    }
-                });
-
-                chip.appendChild(label);
-                chip.appendChild(x);
-                const go = () => { if (!isActive) selectFile(i); };
-                chip.addEventListener('click', go);
-                chip.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
-                });
-                fileTabs.appendChild(chip);
-            });
-
-            fileTabs.classList.toggle('hidden', files.length === 0);
-            renderSheetTabs();
-        }
-
-        // Sub tab: muncul hanya jika file yang aktif punya lebih dari satu sheet
-        function renderSheetTabs() {
-            sheetTabs.innerHTML = '';
-            const active = files[activeFile];
-            const group = active
-                ? files.map((f, i) => ({ f: f, i: i })).filter(o => o.f.fileKey === active.fileKey)
-                : [];
-
-            if (group.length < 2) {
-                sheetTabs.classList.add('hidden');
-                return;
-            }
-
-            group.forEach(o => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'sheet-btn' + (o.i === activeFile ? ' active' : '');
-                btn.textContent = o.f.sheetLabel || ('Sheet ' + (o.i + 1));
-                btn.addEventListener('click', () => { if (o.i !== activeFile) selectFile(o.i); });
-                sheetTabs.appendChild(btn);
-            });
-            sheetTabs.classList.remove('hidden');
-        }
-
-        function setTab(name) {
-            activeTab = name;
-            document.querySelectorAll('.tab-btn').forEach(b => {
-                b.classList.toggle('active', b.dataset.tab === name);
-            });
-            result.classList.toggle('hidden', name !== 'lengkap');
-            ringkasBox.classList.toggle('hidden', name !== 'ringkas');
-            // header sticky perlu dihitung ulang saat tabel terlihat
-            const f = files[activeFile];
-            if (name === 'lengkap' && f) fixStickyOffsets(f.table);
-        }
-
-        function selectFile(i) {
-            if (i < 0 || i >= files.length) return;
-            activeFile = i;
-            const f = files[i];
-
-            result.innerHTML = '';
-            result.appendChild(f.lengkapEl);
-            ringkasBox.innerHTML = '';
-            ringkasBox.appendChild(f.ringkasEl);
-
-            tabs.classList.remove('hidden');
-            renderFileTabs();
-            setTab(activeTab);
-        }
-
-        function resetAll() {
-            files.length = 0;
-            activeFile = -1;
-            fileTabs.innerHTML = '';
-            fileTabs.classList.add('hidden');
-            sheetTabs.innerHTML = '';
-            sheetTabs.classList.add('hidden');
-            tabs.classList.add('hidden');
-            ringkasBox.classList.add('hidden');
-            ringkasBox.innerHTML = '';
-            result.classList.remove('hidden');
-            result.innerHTML = EMPTY_HTML;
-            setStatus('');
-        }
-
-        // Hapus satu atau beberapa file (beserta semua sub tab sheet-nya)
-        function removeFile(keys) {
-            const set = new Set(Array.isArray(keys) ? keys : [keys]);
-            set.forEach(k => dbDelete(k).catch(err => console.error(err)));
-
-            const activeEntry = files[activeFile];
-            const firstIdx = files.findIndex(f => set.has(f.fileKey));
-            for (let i = files.length - 1; i >= 0; i--) {
-                if (set.has(files[i].fileKey)) files.splice(i, 1);
-            }
-            if (!files.length) { resetAll(); updateSaveText(); return; }
-            const keep = files.indexOf(activeEntry);
-            selectFile(keep >= 0 ? keep : Math.min(Math.max(firstIdx, 0), files.length - 1));
-            updateSaveText();
-        }
-
-        document.querySelectorAll('.tab-btn').forEach(b => {
-            b.addEventListener('click', () => setTab(b.dataset.tab));
-        });
-
-
-        // Hitung ulang offset saat ukuran layar berubah
-        window.addEventListener('resize', () => {
-            const f = files[activeFile];
-            if (f && activeTab === 'lengkap') fixStickyOffsets(f.table);
-        });
-
-        // ===== Penyimpanan IndexedDB (file Excel asli disimpan, lalu dibaca ulang saat halaman dibuka) =====
-        const DB_NAME = 'stok-rekap-db';
-        const DB_STORE = 'files';
-        let dbPromise = null;
-
-        function openDB() {
-            if (dbPromise) return dbPromise;
-            dbPromise = new Promise((resolve, reject) => {
-                if (!window.indexedDB) { reject(new Error('IndexedDB tidak didukung browser ini.')); return; }
-                const req = indexedDB.open(DB_NAME, 1);
-                req.onupgradeneeded = () => { req.result.createObjectStore(DB_STORE, { keyPath: 'fileKey' }); };
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
-            });
-            return dbPromise;
-        }
-
-        function dbTx(mode, fn) {
-            return openDB().then(db => new Promise((resolve, reject) => {
-                const tx = db.transaction(DB_STORE, mode);
-                const req = fn(tx.objectStore(DB_STORE));
-                tx.oncomplete = () => resolve(req ? req.result : undefined);
-                tx.onerror = () => reject(tx.error);
-                tx.onabort = () => reject(tx.error);
-            }));
-        }
-
-        function dbSave(record) { return dbTx('readwrite', s => s.put(record)); }
-        function dbDelete(key) { return dbTx('readwrite', s => s.delete(key)); }
-        function dbClear() { return dbTx('readwrite', s => s.clear()); }
-        function dbLoadAll() { return dbTx('readonly', s => s.getAll()); }
-
-        const saveText = document.getElementById('saveText');
-        function updateSaveText() {
-            const total = new Set(files.map(f => f.fileKey)).size;
-            saveText.textContent = total ? 'Tersimpan otomatis di browser (' + total + ' file)' : '';
-        }
-
-        function nextSeq() {
-            return files.reduce((m, f) => Math.max(m, f.seq || 0), 0) + 1;
-        }
-
-        // Baca satu file Excel (ArrayBuffer) menjadi satu atau beberapa entry sheet
-        function processFile(fileName, buffer, seq, errors) {
-            if (typeof XLSX === 'undefined') {
-                throw new Error('Library Excel belum berhasil dimuat.');
-            }
-            const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true });
-
-            const sheetList = sheetsToRead(fileName, workbook);
-            const multi = sheetList.length > 1;
-            const entries = [];
-
-            sheetList.forEach(({ sn, label }) => {
-                const ws = workbook.Sheets[sn];
-                // Lewati sheet kosong (khusus untuk file multi-sheet)
-                if (multi && (!ws || !ws['!ref'])) return;
-                try {
-                    const built = buildFile(workbook, sn);
-                    entries.push({
-                        fileKey: fileName,
-                        seq: seq,
-                        buffer: buffer,
-                        name: cleanName(fileName),
-                        sheetLabel: multi ? label : null,
-                        table: built.table,
-                        lengkapEl: built.lengkapEl,
-                        ringkasEl: built.ringkasEl
-                    });
-                } catch (sheetErr) {
-                    console.error(sheetErr);
-                    errors.push(fileName + ' / ' + sn + ' (' + sheetErr.message + ')');
-                }
-            });
-
-            if (!entries.length) throw new Error('Tidak ada sheet yang bisa dibaca.');
-            return entries;
-        }
-
-        // Masukkan satu file (ArrayBuffer) ke daftar dan simpan ke IndexedDB
-        async function ingestFile(fileName, buffer, errors) {
-            // File dengan nama sama diganti (semua tab sheet-nya) dan tetap di urutan yang sama
-            const existing = files.find(f => f.fileKey === fileName);
-            const seq = existing ? existing.seq : nextSeq();
-
-            const entries = processFile(fileName, buffer, seq, errors);
-
-            const firstOld = files.findIndex(f => f.fileKey === fileName);
-            let insertAt;
-            if (firstOld >= 0) {
-                for (let i = files.length - 1; i >= 0; i--) {
-                    if (files[i].fileKey === fileName) files.splice(i, 1);
-                }
-                insertAt = firstOld;
-            } else {
-                insertAt = files.length;
-            }
-            files.splice(insertAt, 0, ...entries);
-
-            // Kegagalan simpan tidak menghentikan tampilan
-            let saveErr = null;
-            try {
-                await dbSave({ fileKey: fileName, seq: seq, buffer: buffer, savedAt: Date.now() });
-            } catch (dbErr) {
-                console.error(dbErr);
-                saveErr = dbErr;
-            }
-            return { insertAt: insertAt, saveErr: saveErr };
-        }
-
-        function beginBusy() {
-            setStatus('');
-            loading.classList.remove('hidden');
-            dropdownMenu.classList.add('hidden');
-        }
-
-        function finishBusy(errors, saveFailed, firstAdded) {
-            loading.classList.add('hidden');
-
-            const msgs = [];
-            if (errors.length) msgs.push('Gagal membaca: ' + errors.join('; '));
-            if (saveFailed) msgs.push('Data tidak bisa disimpan di browser (' + (saveFailed.message || saveFailed) + '), jadi akan hilang saat halaman ditutup');
-            if (msgs.length) setStatus(msgs.join(' | '));
-
-            if (files.length) {
-                selectFile(firstAdded >= 0 ? firstAdded : Math.max(activeFile, 0));
-            }
-            if (!saveFailed) updateSaveText();
-        }
-
-        // ===== Upload Excel (bisa banyak file sekaligus) =====
-        fileInput.addEventListener('change', async function (event) {
-            const list = Array.from(event.target.files || []);
-            if (!list.length) return;
-
-            beginBusy();
-            const errors = [];
-            let saveFailed = null;
-            let firstAdded = -1;
-
-            for (const file of list) {
-                try {
-                    const buffer = await file.arrayBuffer();
-                    const r = await ingestFile(file.name, buffer, errors);
-                    if (firstAdded === -1) firstAdded = r.insertAt;
-                    if (r.saveErr) saveFailed = r.saveErr;
-                } catch (error) {
-                    console.error(error);
-                    errors.push(file.name + ' (' + error.message + ')');
-                }
-            }
-
-            fileInput.value = ''; // supaya file yang sama bisa dipilih lagi
-            finishBusy(errors, saveFailed, firstAdded);
-        });
-
-        // ===== Backup JSON: simpan semua & buka kembali =====
-        function bufferToBase64(buf) {
-            const bytes = new Uint8Array(buf);
-            let bin = '';
-            const chunk = 0x8000;
-            for (let i = 0; i < bytes.length; i += chunk) {
-                bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-            }
-            return btoa(bin);
-        }
-
-        function base64ToBuffer(b64) {
-            const bin = atob(b64);
-            const bytes = new Uint8Array(bin.length);
-            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-            return bytes.buffer;
-        }
-
-        function exportJSON() {
-            const unique = new Map();
-            files.forEach(f => { if (!unique.has(f.fileKey)) unique.set(f.fileKey, f); });
-            if (!unique.size) {
-                alert('Belum ada data yang bisa disimpan.');
-                return;
-            }
-
-            const list = Array.from(unique.values())
-                .sort((a, b) => (a.seq || 0) - (b.seq || 0))
-                .map(f => ({ fileKey: f.fileKey, seq: f.seq, data: bufferToBase64(f.buffer) }));
-
-            const payload = {
-                app: 'stok-rekap',
-                version: 1,
-                exportedAt: new Date().toISOString(),
-                files: list
-            };
-
-            const d = new Date();
-            const pad = n => String(n).padStart(2, '0');
-            const stamp = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
-                '_' + pad(d.getHours()) + pad(d.getMinutes());
-
-            const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'backup-stok-' + stamp + '.json';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-            saveText.textContent = 'Backup JSON disimpan (' + list.length + ' file)';
-        }
-
-        saveJsonBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            dropdownMenu.classList.add('hidden');
-            exportJSON();
-        });
-
-        jsonFile.addEventListener('change', async function (event) {
-            const file = event.target.files && event.target.files[0];
-            if (!file) return;
-
-            beginBusy();
-            const errors = [];
-            let saveFailed = null;
-            let firstAdded = -1;
-
-            try {
-                const payload = JSON.parse(await file.text());
-                if (!payload || !Array.isArray(payload.files)) {
-                    throw new Error('Format backup tidak dikenali.');
-                }
-                const list = payload.files
-                    .filter(r => r && typeof r.fileKey === 'string' && typeof r.data === 'string')
-                    .sort((a, b) => (a.seq || 0) - (b.seq || 0));
-                if (!list.length) throw new Error('Backup tidak berisi file.');
-
-                for (const rec of list) {
-                    try {
-                        const r = await ingestFile(rec.fileKey, base64ToBuffer(rec.data), errors);
-                        if (firstAdded === -1) firstAdded = r.insertAt;
-                        if (r.saveErr) saveFailed = r.saveErr;
-                    } catch (err) {
-                        console.error(err);
-                        errors.push(rec.fileKey + ' (' + err.message + ')');
-                    }
-                }
-            } catch (error) {
-                console.error(error);
-                errors.push(file.name + ' (' + error.message + ')');
-            }
-
-            jsonFile.value = '';
-            finishBusy(errors, saveFailed, firstAdded);
-        });
-
-        // ===== Hapus pilihan data =====
-        function syncDeleteState() {
-            const cbs = Array.from(deleteList.querySelectorAll('input.del-cb'));
-            const n = cbs.filter(c => c.checked).length;
-            deleteAll.checked = n > 0 && n === cbs.length;
-            deleteConfirmBtn.disabled = n === 0;
-            deleteConfirmBtn.textContent = n ? 'Hapus (' + n + ')' : 'Hapus';
-        }
-
-        function closeDeleteModal() {
-            deleteModal.classList.add('hidden');
-            deleteModal.classList.remove('flex');
-        }
-
-        function openDeleteModal() {
-            const groups = new Map();
-            files.forEach(f => {
-                if (!groups.has(f.fileKey)) groups.set(f.fileKey, { name: f.name, sheets: 0 });
-                groups.get(f.fileKey).sheets++;
-            });
-            if (!groups.size) {
-                alert('Belum ada data yang bisa dihapus.');
-                return;
-            }
-
-            deleteList.innerHTML = '';
-            groups.forEach((g, key) => {
-                const row = document.createElement('label');
-                row.className = 'flex items-center gap-3 px-5 py-2.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer';
-                const cb = document.createElement('input');
-                cb.type = 'checkbox';
-                cb.value = key;
-                cb.className = 'del-cb h-4 w-4';
-                cb.addEventListener('change', syncDeleteState);
-                const span = document.createElement('span');
-                span.textContent = g.name + (g.sheets > 1 ? '  (' + g.sheets + ' sheet)' : '');
-                row.appendChild(cb);
-                row.appendChild(span);
-                deleteList.appendChild(row);
-            });
-
-            deleteAll.checked = false;
-            syncDeleteState();
-            deleteModal.classList.remove('hidden');
-            deleteModal.classList.add('flex');
-        }
-
-        deleteBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            dropdownMenu.classList.add('hidden');
-            openDeleteModal();
-        });
-
-        deleteAll.addEventListener('change', () => {
-            deleteList.querySelectorAll('input.del-cb').forEach(c => { c.checked = deleteAll.checked; });
-            syncDeleteState();
-        });
-
-        deleteCancelBtn.addEventListener('click', closeDeleteModal);
-        deleteBackupBtn.addEventListener('click', exportJSON);
-        deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) closeDeleteModal(); });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !deleteModal.classList.contains('hidden')) closeDeleteModal();
-        });
-
-        deleteConfirmBtn.addEventListener('click', () => {
-            const keys = Array.from(deleteList.querySelectorAll('input.del-cb'))
-                .filter(c => c.checked).map(c => c.value);
-            if (!keys.length) return;
-
-            const names = keys.map(k => {
-                const f = files.find(o => o.fileKey === k);
-                return '- ' + (f ? f.name : k);
-            }).join('\n');
-
-            if (confirm('Hapus ' + keys.length + ' file terpilih?\n\n' + names +
-                '\n\nData akan hilang dari tampilan dan penyimpanan browser (file asli di komputer Anda tidak terhapus).')) {
-                removeFile(keys);
-                closeDeleteModal();
-            }
-        });
-
-        // ===== Pulihkan data tersimpan saat halaman dibuka =====
-        (async function restoreFromDB() {
-            try {
-                const records = await dbLoadAll();
-                if (!records || !records.length) return;
-
-                loading.classList.remove('hidden');
-                records.sort((a, b) => (a.seq || 0) - (b.seq || 0));
-
-                const errors = [];
-                for (const rec of records) {
-                    try {
-                        const entries = processFile(rec.fileKey, rec.buffer, rec.seq || 0, errors);
-                        files.push(...entries);
-                    } catch (err) {
-                        console.error(err);
-                        errors.push(rec.fileKey + ' (' + err.message + ')');
-                    }
-                }
-
-                if (files.length) {
-                    selectFile(0);
-                    updateSaveText();
-                }
-                if (errors.length) setStatus('Sebagian data tersimpan gagal dipulihkan: ' + errors.join('; '));
-            } catch (err) {
-                console.warn('IndexedDB tidak tersedia:', err);
-            } finally {
-                loading.classList.add('hidden');
-            }
-        })();
-    })();
-    </script>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="exportCancel" type="button">Batal</button>
+      <button class="btn-primary" id="exportConfirm" type="button">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="notesModal">
+  <div class="modal">
+    <h3>📝 Catatan Data <span style="margin-left:auto;font-size:12px;font-weight:400;color:var(--muted)">Centang jika sudah dicek</span></h3>
+    <div class="modal-body" id="notesBody"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="notesClose" type="button">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* =========================================================
+   KONFIGURASI & STATE
+   ========================================================= */
+const LS_KEY = 'gajahmas_stock_v1';
+const CATEGORIES = ['Fitri', 'Rua Rupa'];
+const SUFFIX = '(SFA stok Akhir Bulan)';
+const MONTH_NAMES = ['januari','februari','maret','april','mei','juni',
+                     'juli','agustus','september','oktober','november','desember'];
+
+function sortMonths(months) {
+  return [...months].sort((a, b) => {
+    const pa = a.toLowerCase().match(/(\w+)\s+(\d{4})/);
+    const pb = b.toLowerCase().match(/(\w+)\s+(\d{4})/);
+    if (!pa || !pb) return a.localeCompare(b);
+    const ya = parseInt(pa[2], 10), yb = parseInt(pb[2], 10);
+    if (ya !== yb) return ya - yb;
+    const ia = MONTH_NAMES.indexOf(pa[1]);
+    const ib = MONTH_NAMES.indexOf(pb[1]);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+}
+
+let DB = {};
+try { DB = JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch (e) { DB = {}; }
+
+const state = { month: 'ALL', category: 'ALL', search: '' };
+
+/* Bersihkan baris total (JUMLAH/TOTAL) yang terlanjur tersimpan dari upload sebelumnya */
+(function cleanDB() {
+  let changed = false;
+  Object.values(DB).forEach((d) => {
+    if (!d || !Array.isArray(d.items)) return;
+    const before = d.items.length;
+    d.items = d.items.filter((it) => !/^(JUMLAH|TOTAL|SUBTOTAL|GRAND TOTAL)\b/i.test(String(it.nama).trim()));
+    if (d.items.length !== before) changed = true;
+  });
+  if (changed) { try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch (e) {} }
+})();
+
+const $ = (id) => document.getElementById(id);
+
+
+/* =========================================================
+   CATATAN  (catatan baru ditambahkan di PALING ATAS array)
+   ========================================================= */
+const NOTES_KEY = 'gajahmas_notes_checked_v1';
+const NOTES = [
+  {
+    id: '2026-10-11',
+    tanggal: '11 Oktober 2026',
+    judul: 'Perlu dicek – data Juli s/d September 2026',
+    intro: 'Hasil perbandingan file Juli, Agustus, dan September 2026.',
+    items: [
+      { html: '<b>WHOSI WOSHI GREEN TEA</b> – qty 185 (Juli) dan 165 (Agustus), tapi kolom jumlah 0 di keduanya, lalu hilang di September. Jika stoknya memang ada, nilai Juli ± Rp 20,4 juta dan Agustus ± Rp 18,2 juta tidak terhitung.' },
+      { html: '<b>Qty sama berulang</b> (mungkin tidak diperbarui / hasil copy):<ul><li>KECAP PREMIUM 70ML dan SAMBAL GUNA 1 KG: 17 di Juli, Agustus, September</li><li>PUDDING SUSU CHOCOCREAM: 25 di tiga bulan; VANILLA: 4; COCOPANDAN: 2</li><li>KECAP JERIGEN 6KG: 12 di Agustus &amp; September</li><li>SHZ BAR KIREI: 72 di Agustus &amp; September</li></ul>' },
+      { html: '<b>Lonjakan qty</b> yang mencolok:<table><tr><th>Barang</th><th>Juli</th><th>Agustus</th><th>September</th></tr><tr><td>FITRI BOTOL 200 ML</td><td>894</td><td><b>2</b></td><td>930</td></tr><tr><td>SHZ 85 GR KENSHO</td><td>192</td><td>618</td><td><b>3</b></td></tr><tr><td>COCOMAXI CAIR 65 GR</td><td>102</td><td>70</td><td><b>3</b></td></tr><tr><td>STOK BOTOL KOSONG</td><td>49</td><td>14</td><td>398</td></tr><tr><td>SAMBAL GNG 600 REF</td><td>321</td><td>404</td><td>60</td></tr><tr><td>SHZ 85 GR SAKURA</td><td>540</td><td>3.574</td><td>2.360</td></tr><tr><td>LUMBA-LUMBA SUPER PUTIH</td><td>12</td><td>191</td><td>93</td></tr><tr><td>ZEN REFF SEALSAT</td><td>48</td><td>21</td><td>2</td></tr></table>Paling mencurigakan: FITRI 200 ML Agustus (2 unit) dan KENSHO September (3 unit).' },
+      { html: '<b>Barang hilang / muncul:</b> KECAP CG MANIS 150ML, KECAP CG MANIS 550 GR, dan NISSIN CRIPSY LEMON hanya ada di Juli (qty 0) lalu tidak muncul lagi – kembalikan barisnya jika untuk jaga-jaga barang masuk. NISSIN KG MARIE RAJA dan NS KUE KERING tidak ada di Juli, muncul di Agustus.' },
+      { html: '<b>Harga ZEN REFF (4 varian)</b> – 3.150 (jual) / 2.847 (beli) di Juli &amp; Agustus, jadi 4.250 / 3.958 di September, sama persis dengan SHZ REFIL. Kenaikan harga atau harga tertukar? Kenaikan harga FITRI, MIE IKAT, dan NISSIN CRIPSY CRACKER terlihat wajar.' },
+      { html: '<b>Margin tidak biasa</b> (sama di tiga bulan): PUDDING SUSU CHOCOCREAM 26,6% (harga jual 10.500, pudding lain 42.000), SAMBAL MEJA 135 ML 25,1%, JELLYGAR HEMAT PLAIN 21,6%. Barang lain umumnya ± 5–10%.' },
+      { html: '<b>Harga beli 0 di September</b> untuk barang baru yang qty-nya kosong: NS WALENS COKLAT SOES, MD SR SNACK GOLD 30, NS AYNAKO 10. Isi harga beli jika barang nanti masuk.' }
+    ]
+  }
+];
+
+function loadChecked() {
+  try { return JSON.parse(localStorage.getItem(NOTES_KEY)) || {}; } catch (e) { return {}; }
+}
+function saveChecked(c) {
+  try { localStorage.setItem(NOTES_KEY, JSON.stringify(c)); } catch (e) {}
+}
+function notesPending() {
+  const c = loadChecked();
+  let n = 0;
+  NOTES.forEach((nt) => nt.items.forEach((_, i) => { if (!c[nt.id + ':' + i]) n++; }));
+  return n;
+}
+function updateNotesBadge() {
+  const b = $('notesBadge'); if (!b) return;
+  const n = notesPending();
+  b.textContent = n; b.classList.toggle('on', n > 0);
+}
+function renderNotes() {
+  const c = loadChecked();
+  $('notesBody').innerHTML = NOTES.map((nt) => {
+    const done = nt.items.filter((_, i) => c[nt.id + ':' + i]).length;
+    const all = done === nt.items.length;
+    return `<div class="note-entry">
+      <div class="note-head">
+        <span class="nt">${esc(nt.judul)}</span>
+        <span class="np ${all ? 'done' : ''}">${done}/${nt.items.length} dicek</span>
+        <span class="nd">${esc(nt.tanggal)}</span>
+      </div>
+      ${nt.intro ? `<div class="note-intro">${esc(nt.intro)}</div>` : ''}
+      ${nt.items.map((it, i) => `
+        <label class="note-item ${c[nt.id + ':' + i] ? 'done' : ''}">
+          <input type="checkbox" data-nid="${esc(nt.id + ':' + i)}" ${c[nt.id + ':' + i] ? 'checked' : ''}>
+          <div class="nbody"><b>${i + 1}.</b> ${it.html}</div>
+        </label>`).join('')}
+    </div>`;
+  }).join('');
+  updateNotesBadge();
+}
+function openNotes() { renderNotes(); $('notesModal').classList.add('on'); }
+function closeNotes() { $('notesModal').classList.remove('on'); }
+
+/* =========================================================
+   UTILITAS
+   ========================================================= */
+function persist() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); }
+  catch (e) { toast('Gagal menyimpan ke browser (storage penuh)', 'err'); }
+}
+
+function fmt(n) {
+  const v = Number(n) || 0;
+  return new Intl.NumberFormat('id-ID').format(Math.round(v));
+}
+
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function isEmpty(v) { return v === null || v === undefined || v === ''; }
+
+function num(v) {
+  if (isEmpty(v)) return 0;
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  let s = String(v).replace(/[^0-9,.\-]/g, '');
+  if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (s.includes(',')) s = s.replace(',', '.');
+  else s = s.replace(/\./g, '');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function titleCase(s) {
+  return String(s).toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
+
+function categorize(nama) {
+  const n = String(nama || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  // Nama lengkap "Fitri Botol ..." atau singkatan "F B 200", "FB400", "F B 800", dll
+  if (/FITRI/.test(n) || /^F\s*B\s*(200|400|800)\b/.test(n) || /^FB\s*(200|400|800)\b/.test(n) || /^FB(200|400|800)\b/.test(n)) {
+    return 'Fitri';
+  }
+  return 'Rua Rupa';
+}
+
+function hargaBeli(it) {
+  if (it.hb && it.hb > 0) return it.hb;
+  if (it.jb > 0 && it.qty > 0) return it.jb / it.qty;
+  return 0;
+}
+
+function toast(msg, type = 'ok', ms = 2800) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => { t.className = ''; }, ms);
+}
+
+/* =========================================================
+   PARSER EXCEL
+   ========================================================= */
+function parseWorkbook(wb, fileName) {
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, blankrows: true });
+
+  let periode = null;
+  for (const r of rows) {
+    for (const c of r) {
+      if (typeof c === 'string' && /periode/i.test(c)) {
+        const part = c.split(/periode\s*:?/i)[1];
+        if (part && part.trim()) periode = titleCase(part.trim());
+      }
+    }
+  }
+  if (!periode) {
+    const base = String(fileName || '').replace(/[_\-.]+/g, ' ');
+    const m = base.match(new RegExp('(' + MONTH_NAMES.join('|') + ')\\s*(\\d{4})', 'i'));
+    if (m) periode = titleCase(m[1] + ' ' + m[2]);
+  }
+  if (!periode) {
+    const inp = prompt('Periode tidak terdeteksi. Masukkan periode data (contoh: Juli 2026):', 'Juli 2026');
+    periode = (inp || 'Tanpa Periode').trim();
+  }
+  periode = titleCase(periode);
+
+  const items = [];
+  const warnings = [];
+  let idx = null;
+
+  for (const r of rows) {
+    if (!r) continue;
+    const cells = r.map((c) => (typeof c === 'string' ? c.trim().toUpperCase() : ''));
+
+    if (cells.includes('NAMA BARANG')) {
+      idx = {};
+      r.forEach((c, i) => {
+        const t = String(c ?? '').trim().toUpperCase();
+        if (t === 'NO') idx.no = i;
+        else if (t === 'NAMA BARANG') idx.nama = i;
+        else if (t === 'HARGA JUAL') idx.hj = i;
+        else if (t === 'HARGA BELI') idx.hb = i;
+        else if (t === 'QTY') idx.qty = i;
+        else if (t.startsWith('JML') && t.includes('JUAL')) idx.jj = i;
+        else if (t.startsWith('JML') && t.includes('BELI')) idx.jb = i;
+      });
+      continue;
+    }
+
+    if (!idx || idx.nama === undefined) continue;
+
+    const nama = String(r[idx.nama] ?? '').trim();
+    if (!nama) continue;
+
+    const upper = nama.toUpperCase();
+    if (/^(JUMLAH|TOTAL|SUBTOTAL|GRAND TOTAL)\b/.test(upper) || upper === 'NAMA BARANG') continue;
+
+    const qty = num(r[idx.qty]);
+    const hj  = num(r[idx.hj]);
+
+    const jbRaw = (idx.jb !== undefined && !isEmpty(r[idx.jb])) ? num(r[idx.jb]) : 0;
+
+    let hb;
+    if (idx.hb !== undefined && !isEmpty(r[idx.hb])) {
+      hb = num(r[idx.hb]);
+    } else if (qty > 0 && jbRaw > 0) {
+      hb = jbRaw / qty;
+    } else {
+      hb = 0;
+    }
+
+    /* Ikuti Excel apa adanya: jika kolom jumlah ada tapi sel kosong, nilainya 0 (tidak dihitung ulang).
+       Hanya jika kolom jumlah tidak ada sama sekali, dihitung dari harga x qty. */
+    const jj = (idx.jj !== undefined) ? num(r[idx.jj]) : hj * qty;
+    const jb = (idx.jb !== undefined) ? num(r[idx.jb]) : hb * qty;
+
+    if (qty > 0 && idx.jb !== undefined && isEmpty(r[idx.jb])) warnings.push(nama + ' (qty ' + qty + ')');
+
+    items.push({ nama, hj, hb, qty, jj, jb });
+  }
+
+  return { periode, items, warnings };
+}
+
+/* =========================================================
+   UPLOAD FILE
+   ========================================================= */
+async function handleFiles(fileList) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+
+  let okCount = 0, totalItems = 0;
+  const periods = [];
+  const allWarn = [];
+
+  for (const file of files) {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const parsed = parseWorkbook(wb, file.name);
+
+      if (!parsed.items.length) {
+        toast('Tidak ada data ditemukan di ' + file.name, 'err');
+        continue;
+      }
+
+      if (DB[parsed.periode]) {
+        const yes = confirm(`Data periode "${parsed.periode}" sudah ada.\nTimpa dengan data baru?`);
+        if (!yes) continue;
+      }
+
+      DB[parsed.periode] = {
+        periode: parsed.periode,
+        items: parsed.items,
+        fileName: file.name,
+        uploadedAt: new Date().toISOString()
+      };
+
+      parsed.warnings.forEach((w) => allWarn.push(parsed.periode + ': ' + w));
+      okCount++;
+      totalItems += parsed.items.length;
+      periods.push(parsed.periode);
+    } catch (err) {
+      console.error(err);
+      toast('Gagal membaca ' + file.name, 'err');
+    }
+  }
+
+  if (okCount) {
+    persist();
+    if (periods.length === 1) state.month = periods[0];
+    render();
+    toast(`Berhasil upload ${okCount} file • ${totalItems} item • ${periods.join(', ')}`, 'ok');
+    if (allWarn.length) {
+      setTimeout(() => alert('PERINGATAN: qty terisi tapi kolom jumlah di Excel kosong.\nDi aplikasi nilainya ditampilkan 0 (sama dengan Excel), tidak ikut total:\n\n' + allWarn.join('\n') + '\n\nJika barang ini ada stoknya, isi kolom jumlah di Excel lalu upload ulang. Jika kosong, hapus qty-nya.'), 400);
+    }
+  }
+}
+
+/* =========================================================
+   EXPORT EXCEL
+   ========================================================= */
+function safeSheetName(name) {
+  return String(name).replace(/[\\\/\?\*\[\]:]/g, '').slice(0, 31) || 'Sheet1';
+}
+
+function exportExcel(monthsArr) {
+  const valid = monthsArr.filter((m) => DB[m]);
+  if (!valid.length) { toast('Tidak ada data untuk disimpan', 'err'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  valid.forEach((m) => {
+    const d = DB[m];
+    const aoa = [
+      ['NILAI STOCK CV GAJAH MAS'],
+      ['PERIODE ' + d.periode.toUpperCase() + '  ' + SUFFIX.toUpperCase()],
+      [],
+      ['NO', 'NAMA BARANG', 'HARGA JUAL', 'HARGA BELI', 'QTY', 'JML DR HARGA JUAL', 'JML DR HARGA BELI']
+    ];
+
+    d.items.forEach((it, i) => {
+      aoa.push([i + 1, it.nama, it.hj, Math.round(hargaBeli(it)), it.qty, it.jj, it.jb]);
+    });
+
+    const tJ = d.items.reduce((a, b) => a + b.jj, 0);
+    const tB = d.items.reduce((a, b) => a + b.jb, 0);
+    aoa.push(['', 'JUMLAH', '', '', '', tJ, tB]);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [
+      { wch: 5 }, { wch: 38 }, { wch: 13 }, { wch: 13 },
+      { wch: 8 }, { wch: 19 }, { wch: 19 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, safeSheetName(m));
+  });
+
+  if (valid.length > 1) {
+    const sAoa = [[
+      'BULAN', 'QTY FITRI', 'NILAI FITRI (HARGA BELI)',
+      'QTY RUA RUPA', 'NILAI RUA RUPA (HARGA BELI)',
+      'TOTAL SEMUA (HARGA BELI)'
+    ]];
+    let tQF = 0, tNF = 0, tQR = 0, tNR = 0;
+    valid.forEach((m) => {
+      const s = monthSummary(m);
+      tQF += s.qF; tNF += s.nF; tQR += s.qR; tNR += s.nR;
+      sAoa.push([m.toUpperCase(), s.qF, s.nF, s.qR, s.nR, s.nF + s.nR]);
+    });
+    sAoa.push(['TOTAL', tQF, tNF, tQR, tNR, tNF + tNR]);
+
+    const wsS = XLSX.utils.aoa_to_sheet(sAoa);
+    wsS['!cols'] = [
+      { wch: 18 }, { wch: 12 }, { wch: 22 },
+      { wch: 14 }, { wch: 22 }, { wch: 22 }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsS, 'Ringkasan Bulanan');
+  }
+
+  let fname;
+  if (valid.length === 1) {
+    fname = 'Nilai_Stock_CV_Gajah_Mas_' + valid[0].replace(/\s+/g, '_') + '.xlsx';
+  } else {
+    fname = 'Nilai_Stock_CV_Gajah_Mas_' + valid.length + '_Bulan.xlsx';
+  }
+
+  XLSX.writeFile(wb, fname);
+  toast(`File Excel (${valid.length} bulan) berhasil diunduh`, 'ok');
+}
+
+function openExportModal() {
+  const months = sortMonths(Object.keys(DB));
+  if (!months.length) { toast('Tidak ada data untuk disimpan', 'err'); return; }
+
+  $('exportList').innerHTML = months.map((m) => `
+    <label>
+      <input type="checkbox" value="${esc(m)}" checked>
+      <span>${esc(m)}</span>
+    </label>
+  `).join('');
+
+  $('exportModal').classList.add('on');
+}
+
+function closeExportModal() {
+  $('exportModal').classList.remove('on');
+}
+
+function confirmExport() {
+  const checked = Array.from($('exportList').querySelectorAll('input[type=checkbox]:checked'))
+    .map((c) => c.value);
+  if (!checked.length) { toast('Pilih minimal satu bulan', 'err'); return; }
+  closeExportModal();
+  exportExcel(checked);
+}
+
+/* =========================================================
+   RINGKASAN BULANAN
+   ========================================================= */
+function monthSummary(m) {
+  const d = DB[m];
+  let qF = 0, nF = 0, qR = 0, nR = 0;
+  if (d) {
+    d.items.forEach((it) => {
+      const cat = categorize(it.nama);
+      if (cat === 'Fitri') { qF += it.qty; nF += it.jb; }
+      else                 { qR += it.qty; nR += it.jb; }
+    });
+  }
+  return { qF, nF, qR, nR };
+}
+
+function buildSummaryTable(months) {
+  let tQF = 0, tNF = 0, tQR = 0, tNR = 0;
+
+  let rows = '';
+  months.forEach((m) => {
+    const s = monthSummary(m);
+    tQF += s.qF; tNF += s.nF; tQR += s.qR; tNR += s.nR;
+    rows += `<tr>
+      <td>${esc(m)}</td>
+      <td class="num">${fmt(s.qF)}</td>
+      <td class="num">Rp ${fmt(s.nF)}</td>
+      <td class="num">${fmt(s.qR)} unit</td>
+      <td class="num">Rp ${fmt(s.nR)}</td>
+      <td class="num">Rp ${fmt(s.nF + s.nR)}</td>
+    </tr>`;
+  });
+
+  if (months.length > 1) {
+    rows += `<tr class="total-row">
+      <td>TOTAL</td>
+      <td class="num">${fmt(tQF)}</td>
+      <td class="num">Rp ${fmt(tNF)}</td>
+      <td class="num">${fmt(tQR)} unit</td>
+      <td class="num">Rp ${fmt(tNR)}</td>
+      <td class="num">Rp ${fmt(tNF + tNR)}</td>
+    </tr>`;
+  }
+
+  return `
+    <section class="section summary">
+      <div class="section-head">
+        <span>📅 Ringkasan Data Bulanan ${esc(SUFFIX)}</span>
+        <span class="badge">${months.length} bulan</span>
+      </div>
+      <div class="table-wrap">
+        <table class="month-summary">
+          <thead>
+            <tr>
+              <th>Bulan</th>
+              <th>QTY Fitri</th>
+              <th>Nilai Fitri (Harga Beli)</th>
+              <th>QTY Rua Rupa</th>
+              <th>Nilai Rua Rupa (Harga Beli)</th>
+              <th>Total Semua (Harga Beli)</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>`;
+}
+
+/* =========================================================
+   RENDER FILTER BULAN (DROPDOWN)
+   ========================================================= */
+function renderMonthFilter() {
+  const sel = $('monthFilter');
+  const months = sortMonths(Object.keys(DB));
+
+  if (!months.length) {
+    sel.innerHTML = '<option value="ALL">Data Bulanan</option>';
+    sel.value = 'ALL';
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+
+  if (state.month !== 'ALL' && !DB[state.month]) state.month = 'ALL';
+
+  let html = `<option value="ALL">Data Bulanan (Semua)</option>`;
+  months.forEach((m) => {
+    const cnt = DB[m] ? DB[m].items.length : 0;
+    html += `<option value="${esc(m)}">${esc(m)} (${cnt})</option>`;
+  });
+  sel.innerHTML = html;
+  sel.value = state.month;
+}
+
+/* =========================================================
+   RENDER UTAMA
+   ========================================================= */
+function render() {
+  const months = sortMonths(Object.keys(DB));
+
+  if (state.month !== 'ALL' && !DB[state.month]) state.month = 'ALL';
+
+  renderMonthFilter();
+
+  const srcMonths = state.month === 'ALL' ? months : [state.month];
+  let items = [];
+  srcMonths.forEach((m) => { if (DB[m]) items = items.concat(DB[m].items); });
+
+  const filtered = items.filter((it) => {
+    if (state.category !== 'ALL' && categorize(it.nama) !== state.category) return false;
+    if (state.search && !it.nama.toLowerCase().includes(state.search.toLowerCase())) return false;
+    return true;
+  });
+
+  /* ----- STATISTIK ----- */
+  let beliFitri = 0, beliRua = 0;
+  let qtyFitri = 0, qtyRua = 0;
+
+  filtered.forEach((it) => {
+    const cat = categorize(it.nama);
+    if (cat === 'Fitri') { beliFitri += it.jb; qtyFitri += it.qty; }
+    else                 { beliRua   += it.jb; qtyRua   += it.qty; }
+  });
+
+  const totalBeli = beliFitri + beliRua;
+  const totalQty  = qtyFitri + qtyRua;
+
+  $('stats').innerHTML = `
+    <div class="card fitri">
+      <div class="lbl">Nilai Fitri (Harga Beli)</div>
+      <div class="val">Rp ${fmt(beliFitri)}</div>
+      <div class="sub">${fmt(qtyFitri)} unit</div>
+    </div>
+    <div class="card ruarupa">
+      <div class="lbl">Nilai Rua Rupa (Harga Beli)</div>
+      <div class="val">Rp ${fmt(beliRua)}</div>
+      <div class="sub">${fmt(qtyRua)} unit</div>
+    </div>
+    <div class="card total">
+      <div class="lbl">Total Semua (Harga Beli)</div>
+      <div class="val">Rp ${fmt(totalBeli)}</div>
+      <div class="sub">${fmt(totalQty)} unit total</div>
+    </div>
+  `;
+
+  if (!months.length) {
+    $('content').innerHTML = `
+      <div class="empty">
+        <div class="big">📊</div>
+        <h3>Belum Ada Data Stock</h3>
+        <p>Klik tombol <b>☰ Menu</b> di kanan atas lalu pilih <b>📤 Upload Excel</b>,
+        atau seret (drag &amp; drop) file <b>Nilai_Stock_CV_Gajah_Mas.xlsx</b> ke halaman ini.<br><br>
+        Data akan otomatis tersimpan di browser dan bisa difilter per bulan.</p>
+      </div>`;
+    return;
+  }
+
+  /* Mode "Data Bulanan" → ringkasan bulanan */
+  if (state.month === 'ALL') {
+    $('content').innerHTML = buildSummaryTable(months);
+    return;
+  }
+
+  /* Mode bulan tertentu → detail per kategori */
+  if (!filtered.length) {
+    $('content').innerHTML = `
+      <div class="empty">
+        <div class="big">🔍</div>
+        <h3>Tidak ada data yang cocok</h3>
+        <p>Coba ubah filter kategori atau kata kunci pencarian.</p>
+      </div>`;
+    return;
+  }
+
+  let html = '';
+
+  CATEGORIES.forEach((cat) => {
+    const group = filtered.filter((it) => categorize(it.nama) === cat);
+    if (!group.length) return;
+
+    const sJ = group.reduce((a, b) => a + b.jj, 0);
+    const sB = group.reduce((a, b) => a + b.jb, 0);
+    const sQ = group.reduce((a, b) => a + b.qty, 0);
+    const icon = cat === 'Fitri' ? '🟢' : '🔵';
+
+    html += `
+      <section class="section">
+        <div class="section-head">
+          <span>${icon} ${esc(cat)} ${esc(SUFFIX)}</span>
+          <span class="badge">${group.length} item</span>
+          <span class="badge">Rp ${fmt(sB)} (beli)</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th>Nama Barang</th>
+                <th class="num">Harga Jual</th>
+                <th class="num">Harga Beli</th>
+                <th class="num">Qty</th>
+                <th class="num">Jml dr Harga Jual</th>
+                <th class="num">Jml dr Harga Beli</th>
+              </tr>
+            </thead>
+            <tbody>`;
+
+    group.forEach((it, i) => {
+      html += `<tr>
+        <td class="col-no">${i + 1}</td>
+        <td class="nama">${esc(it.nama)}</td>
+        <td class="num">${fmt(it.hj)}</td>
+        <td class="num">${fmt(hargaBeli(it))}</td>
+        <td class="num">${fmt(it.qty)}</td>
+        <td class="num">${fmt(it.jj)}</td>
+        <td class="num">${fmt(it.jb)}</td>
+      </tr>`;
+    });
+
+    html += `
+              <tr class="subtotal">
+                <td colspan="4">Subtotal ${esc(cat)}</td>
+                <td class="num">${fmt(sQ)}</td>
+                <td class="num">${fmt(sJ)}</td>
+                <td class="num">${fmt(sB)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>`;
+  });
+
+  $('content').innerHTML = html;
+}
+
+/* =========================================================
+   HAPUS DATA
+   ========================================================= */
+function deleteMonth() {
+  if (state.month === 'ALL') {
+    toast('Pilih bulan tertentu dulu untuk dihapus', 'err');
+    return;
+  }
+  if (!DB[state.month]) { toast('Data bulan ini tidak ada', 'err'); return; }
+
+  if (!confirm(`Hapus semua data periode "${state.month}"?`)) return;
+  delete DB[state.month];
+  state.month = 'ALL';
+  persist();
+  render();
+  toast('Data periode berhasil dihapus', 'ok');
+}
+
+function deleteAll() {
+  if (!Object.keys(DB).length) { toast('Belum ada data', 'err'); return; }
+  if (!confirm('Hapus SEMUA data stock yang tersimpan?')) return;
+  DB = {};
+  state.month = 'ALL';
+  persist();
+  render();
+  toast('Semua data berhasil dihapus', 'ok');
+}
+
+/* =========================================================
+   EVENT BINDING
+   ========================================================= */
+document.addEventListener('DOMContentLoaded', () => {
+  const menuBtn = $('menuBtn');
+  const menuDd = $('menuDropdown');
+
+  menuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menuDd.classList.toggle('open');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.menu-wrap')) menuDd.classList.remove('open');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      menuDd.classList.remove('open');
+      closeNotes();
+      closeExportModal();
+    }
+  });
+
+  menuDd.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    menuDd.classList.remove('open');
+
+    switch (btn.dataset.act) {
+      case 'upload':    $('fileInput').click(); break;
+      case 'save':      openExportModal(); break;
+      case 'notes':     openNotes(); break;
+      case 'delete':    deleteMonth(); break;
+      case 'deleteAll': deleteAll(); break;
+    }
+  });
+
+  $('monthFilter').addEventListener('change', (e) => {
+    state.month = e.target.value;
+    render();
+  });
+
+  $('fileInput').addEventListener('change', (e) => {
+    handleFiles(e.target.files);
+    e.target.value = '';
+  });
+
+  $('categoryFilter').addEventListener('change', (e) => {
+    state.category = e.target.value;
+    render();
+  });
+  $('searchInput').addEventListener('input', (e) => {
+    state.search = e.target.value.trim();
+    render();
+  });
+
+  $('notesClose').addEventListener('click', closeNotes);
+  $('notesModal').addEventListener('click', (e) => { if (e.target === $('notesModal')) closeNotes(); });
+  $('notesBody').addEventListener('change', (e) => {
+    const cb = e.target.closest('input[data-nid]'); if (!cb) return;
+    const c = loadChecked();
+    if (cb.checked) c[cb.dataset.nid] = 1; else delete c[cb.dataset.nid];
+    saveChecked(c); renderNotes();
+  });
+  updateNotesBadge();
+  $('exportCancel').addEventListener('click', closeExportModal);
+  $('exportConfirm').addEventListener('click', confirmExport);
+
+  $('exportModal').addEventListener('click', (e) => {
+    if (e.target === $('exportModal')) closeExportModal();
+  });
+
+  $('toggleAll').addEventListener('click', () => {
+    const boxes = $('exportList').querySelectorAll('input[type=checkbox]');
+    const allChecked = Array.from(boxes).every((b) => b.checked);
+    boxes.forEach((b) => { b.checked = !allChecked; });
+    $('toggleAll').textContent = allChecked ? 'Pilih Semua' : 'Kosongkan';
+  });
+
+  const drop = $('drop');
+  let dragDepth = 0;
+  window.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragDepth++;
+    drop.classList.add('on');
+  });
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('dragleave', () => {
+    dragDepth--;
+    if (dragDepth <= 0) { dragDepth = 0; drop.classList.remove('on'); }
+  });
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragDepth = 0;
+    drop.classList.remove('on');
+    if (e.dataTransfer && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+  });
+
+  render();
+
+  // PWA: register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(function(e) {
+      console.warn('SW register failed', e);
+    });
+  }
+});
+</script>
 </body>
 </html>
