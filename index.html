@@ -398,6 +398,26 @@
   .modal-actions .btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
   .modal-actions .btn-primary:hover{background:var(--blue-dark);border-color:var(--blue-dark)}
 
+
+  /* ---------- MODAL UBAH HARGA BELI ---------- */
+  #priceModal .modal{max-width:440px}
+  #priceModal .modal-body{padding:14px 20px 16px;max-height:72vh}
+  .pf-desc{font-size:12.5px;color:var(--muted);line-height:1.45;margin-bottom:12px}
+  .pf-row{display:flex;gap:10px}
+  .pf-row > div{flex:1;min-width:0}
+  .pf-lbl{display:block;font-size:11.5px;font-weight:600;color:var(--muted);margin:8px 0 3px}
+  #priceModal input,#priceModal select{
+    width:100%;font-family:inherit;font-size:13.5px;color:var(--text);
+    padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;
+  }
+  #priceModal input:focus,#priceModal select:focus{outline:2px solid #bae6fd;border-color:var(--blue)}
+  .pf-info{
+    margin-top:12px;padding:9px 11px;border-radius:8px;background:#f1f5f9;
+    font-size:12px;color:var(--text);line-height:1.5;min-height:38px;
+  }
+  .pf-info.warn{background:#fef3c7;color:#92400e}
+  .pf-info b{font-weight:700}
+
   /* ---------- RESPONSIVE ---------- */
   @media (max-width:900px){
     .controls{width:100%;margin-left:0}
@@ -435,6 +455,7 @@
       <div class="dropdown" id="menuDropdown">
         <button data-act="upload"><span class="ic">📤</span> Upload Excel</button>
         <button data-act="save"><span class="ic">💾</span> Simpan ke Excel</button>
+        <button data-act="price"><span class="ic">✏️</span> Ubah Harga Beli</button>
         <button data-act="notes"><span class="ic">📝</span> Catatan <span class="notes-badge" id="notesBadge"></span></button>
         <hr>
         <button data-act="delete" class="danger"><span class="ic">🗑️</span> Hapus Data Bulan Ini</button>
@@ -473,6 +494,28 @@
     <div class="modal-body" id="notesBody"></div>
     <div class="modal-actions">
       <button class="btn-primary" id="notesClose" type="button">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="priceModal">
+  <div class="modal">
+    <h3>✏️ Menu Ubah Harga Beli</h3>
+    <div class="modal-body">
+      <p class="pf-desc">Fitur ini untuk edit massal. Pilih rentang tanggal (boleh satu hari saja, atau satu bulan penuh) + produk, lalu isi harga beli baru. Data disimpan per bulan, jadi semua bulan yang tersentuh rentang tanggal akan ikut berubah.</p>
+      <div class="pf-row">
+        <div><label class="pf-lbl" for="pfStart">Tanggal mulai</label><input type="date" id="pfStart"></div>
+        <div><label class="pf-lbl" for="pfEnd">Tanggal akhir</label><input type="date" id="pfEnd"></div>
+      </div>
+      <label class="pf-lbl" for="pfProduct">Produk</label>
+      <select id="pfProduct"></select>
+      <label class="pf-lbl" for="pfPrice">Harga beli baru (Rp)</label>
+      <input type="text" id="pfPrice" inputmode="numeric" placeholder="Masukkan harga beli baru" autocomplete="off">
+      <div class="pf-info" id="pfInfo">Pilih rentang tanggal + produk, isi harga beli baru.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="pfCancel" type="button">Batal</button>
+      <button class="btn-primary" id="pfApply" type="button">Ubah Harga Beli Produk</button>
     </div>
   </div>
 </div>
@@ -584,6 +627,117 @@ function renderNotes() {
 }
 function openNotes() { renderNotes(); $('notesModal').classList.add('on'); }
 function closeNotes() { $('notesModal').classList.remove('on'); }
+
+/* =========================================================
+   UBAH HARGA BELI (EDIT MASSAL)
+   ========================================================= */
+function normName(n) { return String(n || '').replace(/\s+/g, ' ').trim().toUpperCase(); }
+
+/* Daftar periode (key DB) yang tersentuh oleh rentang tanggal */
+function monthsInRange(startStr, endStr) {
+  const [sy, sm] = startStr.split('-').map(Number);
+  const [ey, em] = endStr.split('-').map(Number);
+  const out = [];
+  let y = sy, m = sm - 1;
+  while (y < ey || (y === ey && m <= em - 1)) {
+    const label = titleCase(MONTH_NAMES[m] + ' ' + y);
+    const key = Object.keys(DB).find((k) => k.toLowerCase() === label.toLowerCase());
+    out.push({ label, key: key || null });
+    m++; if (m > 11) { m = 0; y++; }
+    if (out.length > 600) break;
+  }
+  return out;
+}
+
+function priceFormValues() {
+  return {
+    start: $('pfStart').value,
+    end: $('pfEnd').value,
+    product: $('pfProduct').value,
+    price: num($('pfPrice').value)
+  };
+}
+
+function priceTargets(v) {
+  const hits = [];
+  const missing = [];
+  monthsInRange(v.start, v.end).forEach((mo) => {
+    if (!mo.key) { missing.push(mo.label); return; }
+    const items = DB[mo.key].items.filter((it) => normName(it.nama) === v.product);
+    if (items.length) hits.push({ key: mo.key, items }); else missing.push(mo.label);
+  });
+  return { hits, missing };
+}
+
+function updatePriceInfo() {
+  const box = $('pfInfo');
+  const v = priceFormValues();
+  box.classList.remove('warn');
+  if (!v.start || !v.end || !v.product) {
+    box.textContent = 'Pilih rentang tanggal + produk, isi harga beli baru.'; return;
+  }
+  if (v.end < v.start) { box.classList.add('warn'); box.textContent = 'Tanggal akhir tidak boleh sebelum tanggal mulai.'; return; }
+  const { hits, missing } = priceTargets(v);
+  if (!hits.length) { box.classList.add('warn'); box.textContent = 'Produk ini tidak ditemukan di bulan pada rentang tanggal tersebut.'; return; }
+  let h = '<b>' + hits.length + ' bulan</b> akan diubah: ' + hits.map((x) => esc(x.key)).join(', ') + '.';
+  if (missing.length) h += '<br>Dilewati (tidak ada data/produk): ' + missing.map(esc).join(', ') + '.';
+  box.innerHTML = h;
+}
+
+function openPriceModal() {
+  const names = new Map();
+  Object.values(DB).forEach((d) => (d.items || []).forEach((it) => {
+    const k = normName(it.nama); if (!names.has(k)) names.set(k, it.nama);
+  }));
+  if (!names.size) { toast('Belum ada data. Upload Excel dulu.', 'err'); return; }
+  const sorted = Array.from(names.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  $('pfProduct').innerHTML = '<option value="">Pilih produk...</option>' +
+    sorted.map(([k, n]) => `<option value="${esc(k)}">${esc(n)}</option>`).join('');
+
+  // Default: bulan yang sedang dipilih (satu bulan penuh)
+  const months = sortMonths(Object.keys(DB));
+  const cur = (state.month !== 'ALL' && DB[state.month]) ? state.month : months[months.length - 1];
+  const m = String(cur).toLowerCase().match(/(\w+)\s+(\d{4})/);
+  $('pfStart').value = ''; $('pfEnd').value = '';
+  if (m && MONTH_NAMES.indexOf(m[1]) !== -1) {
+    const mi = MONTH_NAMES.indexOf(m[1]), y = Number(m[2]);
+    const last = new Date(y, mi + 1, 0).getDate();
+    const mm = String(mi + 1).padStart(2, '0');
+    $('pfStart').value = `${y}-${mm}-01`;
+    $('pfEnd').value = `${y}-${mm}-${String(last).padStart(2, '0')}`;
+  }
+  $('pfPrice').value = '';
+  updatePriceInfo();
+  $('priceModal').classList.add('on');
+}
+function closePriceModal() { $('priceModal').classList.remove('on'); }
+
+function applyPriceChange() {
+  const v = priceFormValues();
+  if (!v.start || !v.end) { toast('Isi tanggal mulai dan tanggal akhir', 'err'); return; }
+  if (v.end < v.start) { toast('Tanggal akhir tidak boleh sebelum tanggal mulai', 'err'); return; }
+  if (!v.product) { toast('Pilih produk dulu', 'err'); return; }
+  if (!($('pfPrice').value.trim()) || v.price <= 0) { toast('Masukkan harga beli baru yang valid (lebih dari 0)', 'err'); return; }
+
+  const { hits } = priceTargets(v);
+  if (!hits.length) { toast('Produk tidak ditemukan di rentang tanggal tersebut', 'err'); return; }
+
+  const nama = hits[0].items[0].nama;
+  const detail = hits.map((h) => {
+    const it = h.items[0];
+    return `• ${h.key}: ${fmt(hargaBeli(it))} → ${fmt(v.price)}`;
+  }).join('\n');
+  if (!confirm(`Ubah harga beli "${nama}" menjadi Rp ${fmt(v.price)}?\n\n${detail}`)) return;
+
+  hits.forEach((h) => h.items.forEach((it) => {
+    it.hb = v.price;
+    it.jb = v.price * (Number(it.qty) || 0);   // jumlah dr harga beli dihitung ulang
+  }));
+  persist();
+  render();
+  closePriceModal();
+  toast(`Harga beli ${nama} diubah di ${hits.length} bulan`, 'ok');
+}
 
 /* =========================================================
    UTILITAS
@@ -1164,6 +1318,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') {
       menuDd.classList.remove('open');
       closeNotes();
+      closePriceModal();
       closeExportModal();
     }
   });
@@ -1176,6 +1331,7 @@ document.addEventListener('DOMContentLoaded', () => {
     switch (btn.dataset.act) {
       case 'upload':    $('fileInput').click(); break;
       case 'save':      openExportModal(); break;
+      case 'price':     openPriceModal(); break;
       case 'notes':     openNotes(); break;
       case 'delete':    deleteMonth(); break;
       case 'deleteAll': deleteAll(); break;
@@ -1200,6 +1356,16 @@ document.addEventListener('DOMContentLoaded', () => {
     state.search = e.target.value.trim();
     render();
   });
+
+  $('pfCancel').addEventListener('click', closePriceModal);
+  $('pfApply').addEventListener('click', applyPriceChange);
+  $('priceModal').addEventListener('click', (e) => { if (e.target === $('priceModal')) closePriceModal(); });
+  ['pfStart', 'pfEnd', 'pfProduct'].forEach((id) => $(id).addEventListener('change', updatePriceInfo));
+  $('pfPrice').addEventListener('input', (e) => {
+    const d = e.target.value.replace(/[^0-9]/g, '');
+    e.target.value = d ? new Intl.NumberFormat('id-ID').format(Number(d)) : '';
+  });
+  $('pfPrice').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyPriceChange(); });
 
   $('notesClose').addEventListener('click', closeNotes);
   $('notesModal').addEventListener('click', (e) => { if (e.target === $('notesModal')) closeNotes(); });
